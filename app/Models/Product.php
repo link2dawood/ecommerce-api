@@ -6,11 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 
 class Product extends Model
 {
-    use HasFactory, HasApiTokens, Notifiable;
+    use HasFactory, Notifiable;
 
      protected $fillable = [
         'name',
@@ -37,4 +36,10 @@ class Product extends Model
         'price' => 'decimal:2',
         'sale_price' => 'decimal:2',
     ];
+
+
+    public function category()
+      {
+    return $this->belongsTo(Category::class);
+      }
 }

@@ -22,4 +22,11 @@ class ShoppingCart extends Model
         'price' => 'decimal:2',
         'quantity' => 'integer',
     ];
+
+
+    public function product()
+{
+    return $this->belongsTo(Product::class);
+}
+
 }
