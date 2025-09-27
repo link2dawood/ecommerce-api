@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Scout\Searchable;
 
 class Product extends Model
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, Searchable;
 
      protected $fillable = [
         'name',
@@ -38,8 +39,26 @@ class Product extends Model
     ];
 
 
-    public function category()
-      {
-    return $this->belongsTo(Category::class);
-      }
-}
+   public function categories()
+    {
+    return $this->belongsToMany(Category::class, 'product_categories');
+    }
+    public function images()
+    {
+    return $this->hasMany(ProductImage::class);
+    }
+     public function orderItems()
+    {
+    return $this->hasMany(OrderItem::class);
+    }
+    public function reviews()
+    {
+    return $this->hasMany(Review::class);
+    }
+        public function shoppingCarts()
+    {
+        return $this->hasMany(ShoppingCart::class);
+    }
+
+
+}    

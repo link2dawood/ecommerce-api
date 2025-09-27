@@ -20,4 +20,8 @@ class Category extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+    public function products()
+{
+    return $this->belongsToMany(Product::class, 'product_categories');
+}
 }

@@ -22,6 +22,10 @@ class OrderItem extends Model
         'price' => 'decimal:2',
         'total' => 'decimal:2',
     ];
+        public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 
 
      public function product()

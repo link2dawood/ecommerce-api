@@ -46,4 +46,18 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
     ];
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+    public function reviews()
+     {
+    return $this->hasMany(Review::class);
+     }
+    public function shoppingCart()
+    {
+        return $this->hasMany(ShoppingCart::class);
+    }
+
+
 }

@@ -25,7 +25,7 @@ use App\Http\Controllers\OrderController;
 /* Product controller*/
 Route::get('/products', [ProductController::class, 'index']);
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['api.rate_limit:100,1'])->group(function () {
 
     Route::post('/products', [ProductController::class, 'store']);    
     Route::put('/products/{id}', [ProductController::class, 'update']); 

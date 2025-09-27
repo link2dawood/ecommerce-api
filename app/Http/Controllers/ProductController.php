@@ -8,13 +8,27 @@ use App\Models\Product;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-
+use Illuminate\Support\Facades\Cache;
 class ProductController extends Controller
 {
     
     public function index(Request $request)
     {
-    $query = Product::with('category'); // Eager load category relationship
+         $page = $request->get('page', 1);
+    $perPage = $request->get('per_page', 15);
+    $filtersHash = md5(json_encode($request->only(['q','category','sort','min_price','max_price'])));
+
+    $cacheKey = "products:page:{$page}:per:{$perPage}:{$filtersHash}";
+
+    // Use tags (works with redis/memcached)
+    $products = Cache::tags(['products'])->remember($cacheKey, 60, function () use ($perPage) {
+        return \App\Models\Product::with('images')
+                ->where('status', 'active')
+                ->paginate($perPage);
+    });
+
+   
+    $query = Product::with('category');
     
     // Search by name
     if ($request->has('search') && !empty($request->search)) {
