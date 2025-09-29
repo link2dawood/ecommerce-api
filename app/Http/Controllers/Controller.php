@@ -10,6 +10,11 @@ use Illuminate\Routing\Controller as BaseController;
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
-    $results = App\Models\Product::search('iphone')->paginate(15);
 
+    protected function authorizeAdmin()
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            abort(403, 'Unauthorized. Admin access required.');
+        }
+    }
 }

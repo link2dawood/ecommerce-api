@@ -30,10 +30,27 @@ class OrderController extends Controller
         DB::beginTransaction();
 
         try {
-            // Calculate total
-            $total = $cartItems->sum(function ($item) {
-                return $item->price * $item->quantity;
-            });
+            // Validate stock availability for all items
+            foreach ($cartItems as $item) {
+                $product = $item->product;
+                if ($product->stock_quantity < $item->quantity) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Insufficient stock for product: ' . $product->name,
+                        'product_id' => $product->id,
+                        'available_stock' => $product->stock_quantity,
+                        'requested_quantity' => $item->quantity
+                    ], 400);
+                }
+            }
+
+            // Calculate total with current product prices
+            $total = 0;
+            foreach ($cartItems as $item) {
+                $product = $item->product;
+                $currentPrice = $product->sale_price ?? $product->price;
+                $total += $currentPrice * $item->quantity;
+            }
 
             // Create Order
             $order = Order::create([
@@ -43,14 +60,20 @@ class OrderController extends Controller
                 'shipping_address' => $request->shipping_address,
             ]);
 
-            // Create Order Items
+            // Create Order Items and decrement stock
             foreach ($cartItems as $item) {
+                $product = $item->product;
+                $currentPrice = $product->sale_price ?? $product->price;
+
                 OrderItem::create([
                     'order_id'   => $order->id,
                     'product_id' => $item->product_id,
                     'quantity'   => $item->quantity,
-                    'price'      => $item->price,
+                    'price'      => $currentPrice,
                 ]);
+
+                // Decrement stock
+                $product->decrement('stock_quantity', $item->quantity);
             }
 
 

@@ -18,17 +18,17 @@ use App\Http\Controllers\OrderController;
 */
   Route::post('/register', [AuthController::class, 'register']);
   Route::post('/login', [AuthController::class, 'login']);
-  Route::post('/logout', [AuthController::class, 'logout']);
+  Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 /*Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();*/
 
 /* Product controller*/
 Route::get('/products', [ProductController::class, 'index']);
 
-Route::middleware(['api.rate_limit:100,1'])->group(function () {
+Route::middleware(['auth:sanctum', 'api.rate_limit:100,1'])->group(function () {
 
-    Route::post('/products', [ProductController::class, 'store']);    
-    Route::put('/products/{id}', [ProductController::class, 'update']); 
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
 

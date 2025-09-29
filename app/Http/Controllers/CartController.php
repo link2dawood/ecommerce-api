@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
-use App\Models\ShopingCart;
+use App\Models\ShoppingCart;
 use App\Models\Product;
 
 class CartController extends Controller
@@ -29,13 +29,30 @@ class CartController extends Controller
 
         $product = Product::findOrFail($request->product_id);
 
+        // Check stock availability
+        if ($product->stock_quantity < $request->quantity) {
+            return response()->json([
+                'message' => 'Insufficient stock available',
+                'available_stock' => $product->stock_quantity
+            ], 400);
+        }
+
         $cartItem = ShoppingCart::where('user_id', Auth::id())
             ->where('product_id', $product->id)
             ->first();
 
         if ($cartItem) {
+            // Check if updated quantity exceeds stock
+            $newQuantity = $cartItem->quantity + $request->quantity;
+            if ($product->stock_quantity < $newQuantity) {
+                return response()->json([
+                    'message' => 'Insufficient stock available',
+                    'available_stock' => $product->stock_quantity,
+                    'current_in_cart' => $cartItem->quantity
+                ], 400);
+            }
             // Update quantity
-            $cartItem->quantity += $request->quantity;
+            $cartItem->quantity = $newQuantity;
             $cartItem->save();
         } else {
             // Create new cart item
@@ -61,6 +78,16 @@ class CartController extends Controller
 
         $cartItem = ShoppingCart::where('user_id', Auth::id())
             ->findOrFail($id);
+
+        $product = Product::findOrFail($cartItem->product_id);
+
+        // Check stock availability
+        if ($product->stock_quantity < $request->quantity) {
+            return response()->json([
+                'message' => 'Insufficient stock available',
+                'available_stock' => $product->stock_quantity
+            ], 400);
+        }
 
         $cartItem->quantity = $request->quantity;
         $cartItem->save();
