@@ -13,7 +13,115 @@ use App\Jobs\SendOrderConfirmationEmail;
 
 class OrderController extends Controller
 {
-    
+    public function index()
+    {
+        $orders = Order::with('items.product')
+            ->where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return response()->json($orders, 200);
+    }
+
+    public function show($id)
+    {
+        $order = Order::with(['items.product.images', 'items.product.categories'])
+            ->where('user_id', Auth::id())
+            ->findOrFail($id);
+
+        return response()->json($order, 200);
+    }
+
+    public function cancel($id)
+    {
+        $order = Order::where('user_id', Auth::id())->findOrFail($id);
+
+        if (!in_array($order->status, ['pending', 'processing'])) {
+            return response()->json(['message' => 'Cannot cancel this order'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Restore stock
+            foreach ($order->items as $item) {
+                $item->product->increment('stock_quantity', $item->quantity);
+            }
+
+            $order->status = 'cancelled';
+            $order->save();
+
+            DB::commit();
+
+            return response()->json($order, 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to cancel order'], 500);
+        }
+    }
+
+    public function track($id)
+    {
+        $order = Order::where('user_id', Auth::id())
+            ->findOrFail($id);
+
+        $timeline = [
+            ['status' => 'pending', 'label' => 'Order Placed', 'completed' => true],
+            ['status' => 'processing', 'label' => 'Processing', 'completed' => in_array($order->status, ['processing', 'shipped', 'delivered'])],
+            ['status' => 'shipped', 'label' => 'Shipped', 'completed' => in_array($order->status, ['shipped', 'delivered'])],
+            ['status' => 'delivered', 'label' => 'Delivered', 'completed' => $order->status === 'delivered'],
+        ];
+
+        if ($order->status === 'cancelled') {
+            $timeline = [
+                ['status' => 'pending', 'label' => 'Order Placed', 'completed' => true],
+                ['status' => 'cancelled', 'label' => 'Cancelled', 'completed' => true],
+            ];
+        }
+
+        return response()->json([
+            'order' => $order,
+            'timeline' => $timeline,
+        ], 200);
+    }
+
+    // Admin endpoints
+    public function adminIndex()
+    {
+        $this->authorizeAdmin();
+
+        $orders = Order::with(['user:id,name,email', 'items.product'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return response()->json($orders, 200);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $this->authorizeAdmin();
+
+        $validator = \Validator::make($request->all(), [
+            'status' => 'required|in:pending,processing,shipped,delivered,cancelled',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status_code' => 400, 'message' => 'Validation failed', 'errors' => $validator->errors()], 400);
+        }
+
+        $order = Order::findOrFail($id);
+        $order->status = $request->status;
+        $order->save();
+
+        return response()->json($order, 200);
+    }
+
+    protected function authorizeAdmin()
+    {
+        if (auth()->user()->role !== 'admin') {
+            abort(403, 'Unauthorized action');
+        }
+    }
+
      public function store(Request $request)
     {
         $request->validate([

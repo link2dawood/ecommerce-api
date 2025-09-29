@@ -14,29 +14,120 @@ class ProductController extends Controller
     
     public function index(Request $request)
     {
-         $page = $request->get('page', 1);
-    $perPage = $request->get('per_page', 15);
-    $filtersHash = md5(json_encode($request->only(['q','category','sort','min_price','max_price'])));
+        $query = Product::with(['categories', 'images', 'reviews'])
+            ->where('status', 'active');
 
-    $cacheKey = "products:page:{$page}:per:{$perPage}:{$filtersHash}";
+        // Search by name or description
+        if ($request->has('search') && !empty($request->search)) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%')
+                  ->orWhere('sku', 'like', '%' . $request->search . '%');
+            });
+        }
 
-    // Use tags (works with redis/memcached)
-    $products = Cache::tags(['products'])->remember($cacheKey, 60, function () use ($perPage) {
-        return \App\Models\Product::with('images')
-                ->where('status', 'active')
-                ->paginate($perPage);
-    });
+        // Filter by category
+        if ($request->has('category_id')) {
+            $query->whereHas('categories', function($q) use ($request) {
+                $q->where('categories.id', $request->category_id);
+            });
+        }
 
-   
-    $query = Product::with('category');
-    
-    // Search by name
-    if ($request->has('search') && !empty($request->search)) {
-        $query->where('name', 'like', '%' . $request->search . '%');
+        // Filter by price range
+        if ($request->has('min_price')) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->has('max_price')) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        // Filter by featured
+        if ($request->has('featured')) {
+            $query->where('featured', $request->featured);
+        }
+
+        // Filter by availability
+        if ($request->has('in_stock') && $request->in_stock) {
+            $query->where('stock_quantity', '>', 0);
+        }
+
+        // Sort products
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+
+        switch ($sortBy) {
+            case 'price_low':
+                $query->orderBy('price', 'asc');
+                break;
+            case 'price_high':
+                $query->orderBy('price', 'desc');
+                break;
+            case 'name':
+                $query->orderBy('name', $sortOrder);
+                break;
+            case 'newest':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'popular':
+                $query->withCount('orderItems')->orderBy('order_items_count', 'desc');
+                break;
+            default:
+                $query->orderBy($sortBy, $sortOrder);
+        }
+
+        $perPage = $request->get('per_page', 15);
+        $products = $query->paginate($perPage);
+
+        return response()->json($products);
     }
 
-    $products = $query->paginate(10); // Paginate with 10 items per page
-    return response()->json($products);
+    public function show($id)
+    {
+        $product = Product::with(['categories', 'images', 'reviews' => function($query) {
+            $query->where('is_approved', true)
+                  ->with('user:id,name')
+                  ->latest()
+                  ->limit(10);
+        }])
+        ->withAvg('reviews', 'rating')
+        ->withCount('reviews')
+        ->findOrFail($id);
+
+        return response()->json($product, 200);
+    }
+
+    public function featured()
+    {
+        $products = Product::with(['categories', 'images'])
+            ->where('status', 'active')
+            ->where('featured', true)
+            ->limit(10)
+            ->get();
+
+        return response()->json($products, 200);
+    }
+
+    public function newArrivals()
+    {
+        $products = Product::with(['categories', 'images'])
+            ->where('status', 'active')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json($products, 200);
+    }
+
+    public function onSale()
+    {
+        $products = Product::with(['categories', 'images'])
+            ->where('status', 'active')
+            ->whereNotNull('sale_price')
+            ->where('sale_price', '<', \DB::raw('price'))
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return response()->json($products, 200);
     }
   
 
