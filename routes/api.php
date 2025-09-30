@@ -31,7 +31,9 @@ use App\Http\Controllers\PaymentController;
 
 // Authentication
 Route::post('/register', [AuthController::class, 'register']);
+Route::get('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/login', [AuthController::class, 'login']);
 
 // Products (Public browsing)
 Route::get('/products', [ProductController::class, 'index']);
