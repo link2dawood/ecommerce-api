@@ -28,6 +28,9 @@ class CreateProductsTable extends Migration
             $table->string('dimensions', 100)->nullable();
             $table->enum('status', ['active', 'inactive', 'draft'])->default('active');
             $table->boolean('featured')->default(false);
+            $table->unsignedBigInteger('category_id');
+            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
+
             $table->unsignedBigInteger('vendor_id')->nullable();
             $table->foreign('vendor_id')
               ->references('id')
@@ -44,7 +47,9 @@ class CreateProductsTable extends Migration
      * @return void
      */
     public function down()
-    {
-        Schema::dropIfExists('products');
-    }
+{
+    Schema::table('products', function (Blueprint $table) {
+        $table->dropForeign(['category_id']);
+        $table->dropColumn('category_id');
+    });
 }

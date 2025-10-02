@@ -36,11 +36,11 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', [AuthController::class, 'login']);
 
 // Products (Public browsing)
-Route::get('/products', [ProductController::class, 'index']);
-Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/products/featured', [ProductController::class, 'featured']);
 Route::get('/products/new-arrivals', [ProductController::class, 'newArrivals']);
 Route::get('/products/on-sale', [ProductController::class, 'onSale']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::get('/products', [ProductController::class, 'index']);
 
 // Categories (Public browsing)
 Route::get('/categories', [CategoryController::class, 'index']);

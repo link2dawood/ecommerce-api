@@ -26,6 +26,7 @@ class Product extends Model
         'dimensions',
         'status',
         'featured',
+        'category_id',
         'vendor_id',
     ];
    
@@ -39,10 +40,14 @@ class Product extends Model
     ];
 
 
-   public function categories()
+    public function categories()
     {
     return $this->belongsToMany(Category::class, 'product_categories');
     }
+     /**public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }*/
     public function images()
     {
     return $this->hasMany(ProductImage::class);

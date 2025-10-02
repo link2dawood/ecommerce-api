@@ -8,11 +8,13 @@ class ProductObserver
 {
         public function saved(Product $product)
     {
-        Cache::tags(['products'])->flush();
+       Cache::forget('all_products');
+
     }
 
     public function deleted(Product $product)
     {
-        Cache::tags(['products'])->flush();
+       Cache::forget('all_products');
+
     }
 }
