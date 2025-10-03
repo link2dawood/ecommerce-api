@@ -13,6 +13,7 @@ use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ContactController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,7 +31,7 @@ use App\Http\Controllers\PaymentController;
 // ============================================
 
 // Authentication
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register', [AuthController::class, 'register'])->name('api.register');
 Route::get('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/login', [AuthController::class, 'login']);
@@ -107,6 +108,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Payment
     Route::post('/payments/process', [PaymentController::class, 'processPayment']);
     Route::post('/payments/verify', [PaymentController::class, 'verifyPayment']);
+
+    //contact
+     Route::get('/contacts', [ContactController::class, 'index']);     // admin only
+    Route::get('/contacts/{id}', [ContactController::class, 'show']);
+    Route::post('/contacts', [ContactController::class, 'store']);
+    Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
 });
 
 

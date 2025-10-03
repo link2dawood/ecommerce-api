@@ -2,101 +2,100 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\AuthController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\ReviewController;
-use App\Http\Controllers\CouponController;
-use App\Http\Controllers\WishlistController;
-use App\Http\Controllers\AddressController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\PaymentController;
-
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\NewsletterController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 */
 
-// Homepage
+// Landing / Welcome
 Route::get('/', function () {
     return view('welcome');
-})->name('home');
+});
 
-// =============================
-// Authentication Pages
-// =============================
-Route::get('/register', [AuthController::class, 'showRegisterForm'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
-
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-
+// Auth pages
+Route::get('/register', fn () => view('auth.register'))->name('register');
+Route::get('/login', fn () => view('auth.login'))->name('login');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Dummy page to fix your error
-Route::get('/status/set', function () {
-    return view('status.set'); 
-})->name('status.set');
+// Static pages
+Route::get('/status/set', fn () => view('status.set'))->name('status.set');
+Route::get('/terms', fn () => view('terms'))->name('terms');
+Route::get('/feedback', fn () => view('feedback'))->name('feedback');
+Route::get('/settings', fn () => view('settings'))->name('settings');
 
-// =============================
-// Products
-// =============================
-Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');
-Route::get('/products/featured', [ProductController::class, 'featured'])->name('products.featured');
-Route::get('/products/new-arrivals', [ProductController::class, 'newArrivals'])->name('products.newArrivals');
-Route::get('/products/on-sale', [ProductController::class, 'onSale'])->name('products.onSale');
-
-// =============================
-// Categories
-// =============================
-Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
-Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('categories.show');
-
-// =============================
-// User Profile & Dashboard
-// =============================
-Route::get('/profile', [UserController::class, 'profile'])->name('profile');
-Route::put('/profile', [UserController::class, 'updateProfile']);
+// Dashboard & Home
+Route::get('/home', fn () => view('home'))->name('home');
 Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
 
-// =============================
-// Cart
-// =============================
-Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+// Profile pages
+Route::prefix('profile')->group(function () {
+    Route::get('/', [UserController::class, 'profile'])->name('profile');
+    Route::get('/edit', [UserController::class, 'edit'])->name('profile.edit');
+    Route::post('/update', [UserController::class, 'updateProfile'])->name('profile.update');
+    Route::post('/change-password', [UserController::class, 'changePassword'])->name('profile.change-password');
+    Route::delete('/delete', [UserController::class, 'deleteAccount'])->name('profile.delete');
+});
 
-// =============================
+// Search
+Route::get('/search', [ProductController::class, 'search'])->name('search');
+
 // Wishlist
-// =============================
-Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist.index');
+Route::prefix('wishlist')->group(function () {
+    Route::get('/', [WishlistController::class, 'index'])->name('wishlist');
+    Route::post('/', [WishlistController::class, 'store'])->name('wishlist.store');
+    Route::delete('/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+    Route::delete('/', [WishlistController::class, 'clear'])->name('wishlist.clear');
+});
 
-// =============================
-// Orders
-// =============================
-Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
 
-// =============================
-// Reviews
-// =============================
-Route::get('/products/{productId}/reviews', [ReviewController::class, 'index'])->name('reviews.index');
-// Feedback Page
-Route::get('/feedback', function () {
-    return view('feedback'); // create resources/views/feedback.blade.php
-})->name('feedback');
-// Settings Page
-Route::get('/settings', function () {
-    return view('settings'); // create resources/views/settings.blade.php
-})->name('settings');
+// Cart Routes
+Route::prefix('cart')->group(function () {
+    Route::get('/', [CartController::class, 'index'])->name('cart.index');
+    Route::post('/add/{id}', [CartController::class, 'add'])->name('cart.add');
+    Route::post('/update/{id}', [CartController::class, 'update'])->name('cart.update');
+    Route::delete('/remove/{id}', [CartController::class, 'remove'])->name('cart.remove');
+    Route::delete('/clear', [CartController::class, 'clear'])->name('cart.clear');
+});
 
-// =============================
-// Coupons
-// =============================
-Route::get('/coupons', [CouponController::class, 'index'])->name('coupons.index');
+// Shop route (all products)
+Route::get('/shop', [ProductController::class, 'index'])->name('shop.index');
 
-// =============================
-// Payment
-// =============================
-Route::get('/payment-methods', [PaymentController::class, 'paymentMethods'])->name('payments.methods');
+// Contact Page
+Route::get('/contact', function () {
+    return view('contact'); // resources/views/contact.blade.php
+})->name('contact');
+
+// Contact form submission
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+
+// Checkout page
+Route::get('/checkout', function () {
+    return view('checkout'); // resources/views/checkout.blade.php
+})->name('checkout');
+
+// Checkout process (store order)
+Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.store');
+
+
+// Only authenticated users can access
+Route::middleware(['auth:sanctum'])->group(function () {
+
+    // Orders list
+    Route::get('/orders', [OrderController::class, 'index'])->name('orders');
+
+    // Single order detail
+    Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+
+});
+
+
+Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])
+    ->name('newsletter.subscribe');

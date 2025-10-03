@@ -28,14 +28,19 @@ class CreateProductsTable extends Migration
             $table->string('dimensions', 100)->nullable();
             $table->enum('status', ['active', 'inactive', 'draft'])->default('active');
             $table->boolean('featured')->default(false);
+
+            // Foreign keys
             $table->unsignedBigInteger('category_id');
-            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
+            $table->foreign('category_id')
+                  ->references('id')
+                  ->on('categories')
+                  ->onDelete('cascade');
 
             $table->unsignedBigInteger('vendor_id')->nullable();
             $table->foreign('vendor_id')
-              ->references('id')
-              ->on('users')
-              ->onDelete('cascade');
+                  ->references('id')
+                  ->on('users')
+                  ->onDelete('cascade');
 
             $table->timestamps();
         });
@@ -47,9 +52,12 @@ class CreateProductsTable extends Migration
      * @return void
      */
     public function down()
-{
-    Schema::table('products', function (Blueprint $table) {
-        $table->dropForeign(['category_id']);
-        $table->dropColumn('category_id');
-    });
+    {
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropForeign(['category_id']);
+            $table->dropForeign(['vendor_id']);
+        });
+
+        Schema::dropIfExists('products');
+    }
 }

@@ -11,19 +11,28 @@
     <script>
         document.getElementById("logoutBtn").addEventListener("click", async function(){
             let token = localStorage.getItem("auth_token");
+
+            if (!token) {
+                alert("No user is logged in.");
+                window.location.href = "/login";
+                return;
+            }
+
             let response = await fetch("/api/logout", {
                 method: "POST",
                 headers: {
                     "Accept": "application/json",
-                    "Authorization": "Bearer " + token,
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
+                    "Authorization": "Bearer " + token
                 }
             });
 
-            let data = await response.json();
-            localStorage.removeItem("auth_token");
-            alert("Logged out successfully!");
-            window.location.href = "/login";
+            if (response.ok) {
+                localStorage.removeItem("auth_token");
+                alert("Logged out successfully!");
+                window.location.href = "/login";
+            } else {
+                alert("Logout failed. Please try again.");
+            }
         });
     </script>
 </body>

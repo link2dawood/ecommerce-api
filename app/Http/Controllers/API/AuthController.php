@@ -57,8 +57,16 @@ class AuthController extends Controller
   }
 
   public function logout(Request $request)
-  {
-    $request->user()->currentAccessToken()->delete();
-    return response()->json(['status_code'=>200, 'token'=> 'token Deleted']);
-  }
+{
+    if ($request->user() && $request->user()->currentAccessToken()) {
+        $request->user()->currentAccessToken()->delete();
+    }
+
+    \Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login')->with('status', 'Logged out successfully!');
+}
+
 }

@@ -25,6 +25,11 @@ class ProductController extends Controller
                   ->orWhere('sku', 'like', '%' . $request->search . '%');
             });
         }
+public function index()
+{
+    $products = Product::latest()->paginate(12); // show 12 per page
+    return view('shop', compact('products'));
+}
 
         // Filter by category
         if ($request->has('category_id')) {
@@ -244,6 +249,14 @@ class ProductController extends Controller
         return response()->json(['message' => 'Product deleted successfully'], 200);
     }
 
+public function search(Request $request)
+{
+    $query = $request->input('q');
+    // Example: search products
+    $products = Product::where('name', 'like', "%$query%")->get();
+
+    return view('search', compact('products', 'query'));
+}
 
     
 }
