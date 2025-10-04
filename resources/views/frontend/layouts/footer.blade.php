@@ -4,12 +4,12 @@
         <div class="col-lg-4 col-md-12 mb-5 pr-3 pr-xl-5">
             <a href="{{ url('/') }}" class="text-decoration-none">
                 <h1 class="mb-4 display-5 font-weight-semi-bold">
-                    <span class="text-primary font-weight-bold border border-white px-3 mr-1">E</span>Shopper
+                    <span class="text-primary font-weight-bold border border-white px-3 mr-1">E</span>Commerce-API
                 </h1>
             </a>
             <p>Best place to shop your favorite products online.</p>
             <p class="mb-2"><i class="fa fa-map-marker-alt text-primary mr-3"></i>Your Address</p>
-            <p class="mb-2"><i class="fa fa-envelope text-primary mr-3"></i>support@eshopper.com</p>
+            <p class="mb-2"><i class="fa fa-envelope text-primary mr-3"></i>support@ecommerce-api.com</p>
             <p class="mb-0"><i class="fa fa-phone-alt text-primary mr-3"></i>+012 345 67890</p>
         </div>
         <div class="col-lg-8 col-md-12">
@@ -52,7 +52,7 @@
     </div>
     <div class="row border-top border-light mx-xl-5 py-4">
         <div class="col-md-6 text-center text-md-left">
-            <p class="mb-md-0">&copy; {{ date('Y') }} <a class="text-dark font-weight-semi-bold" href="{{ url('/') }}">Eshopper</a>. All Rights Reserved.</p>
+            <p class="mb-md-0">&copy; {{ date('Y') }} <a class="text-dark font-weight-semi-bold" href="{{ url('/') }}">Ecommerce-api</a>. All Rights Reserved.</p>
         </div>
         <div class="col-md-6 text-center text-md-right">
             <img class="img-fluid" src="{{ asset('img/payments.png') }}" alt="">
@@ -60,15 +60,5 @@
     </div>
 </div>
 <!-- Footer End -->
-<form action="{{ route('newsletter.subscribe') }}" method="POST">
-    @csrf
-    <input type="email" name="email" placeholder="Enter your email" required>
-    <button type="submit">Subscribe</button>
-</form>
 
-@if(session('success'))
-    <p style="color: green">{{ session('success') }}</p>
-@endif
-@if($errors->any())
-    <p style="color: red">{{ $errors->first('email') }}</p>
-@endif
+

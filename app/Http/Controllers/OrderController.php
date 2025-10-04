@@ -20,6 +20,11 @@ class OrderController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
+        // If web request, return view
+        if (!request()->expectsJson()) {
+            return view('frontend.orders.index', compact('orders'));
+        }
+
         return response()->json($orders, 200);
     }
 
@@ -29,6 +34,11 @@ class OrderController extends Controller
             ->where('user_id', Auth::id())
             ->findOrFail($id);
 
+        // If web request, return view
+        if (!request()->expectsJson()) {
+            return view('frontend.orders.show', compact('order'));
+        }
+
         return response()->json($order, 200);
     }
 
@@ -37,6 +47,9 @@ class OrderController extends Controller
         $order = Order::where('user_id', Auth::id())->findOrFail($id);
 
         if (!in_array($order->status, ['pending', 'processing'])) {
+            if (!request()->expectsJson()) {
+                return back()->with('error', 'Cannot cancel this order');
+            }
             return response()->json(['message' => 'Cannot cancel this order'], 400);
         }
 
@@ -52,9 +65,18 @@ class OrderController extends Controller
 
             DB::commit();
 
+            if (!request()->expectsJson()) {
+                return back()->with('success', 'Order cancelled successfully');
+            }
+
             return response()->json($order, 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            if (!request()->expectsJson()) {
+                return back()->with('error', 'Failed to cancel order');
+            }
+            
             return response()->json(['message' => 'Failed to cancel order'], 500);
         }
     }
@@ -78,6 +100,10 @@ class OrderController extends Controller
             ];
         }
 
+        if (!request()->expectsJson()) {
+            return view('frontend.orders.track', compact('order', 'timeline'));
+        }
+
         return response()->json([
             'order' => $order,
             'timeline' => $timeline,
@@ -93,6 +119,11 @@ class OrderController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
+        // If web request, return admin view
+        if (!request()->expectsJson()) {
+            return view('admin.orders.index', compact('orders'));
+        }
+
         return response()->json($orders, 200);
     }
 
@@ -105,12 +136,19 @@ class OrderController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if (!request()->expectsJson()) {
+                return back()->withErrors($validator)->withInput();
+            }
             return response()->json(['status_code' => 400, 'message' => 'Validation failed', 'errors' => $validator->errors()], 400);
         }
 
         $order = Order::findOrFail($id);
         $order->status = $request->status;
         $order->save();
+
+        if (!request()->expectsJson()) {
+            return back()->with('success', 'Order status updated successfully');
+        }
 
         return response()->json($order, 200);
     }
@@ -122,7 +160,7 @@ class OrderController extends Controller
         }
     }
 
-     public function store(Request $request)
+    public function store(Request $request)
     {
         $request->validate([
             'shipping_address' => 'required|string|max:500',
@@ -132,6 +170,9 @@ class OrderController extends Controller
         $cartItems = ShoppingCart::with('product')->where('user_id', $userId)->get();
 
         if ($cartItems->isEmpty()) {
+            if (!request()->expectsJson()) {
+                return back()->with('error', 'Cart is empty');
+            }
             return response()->json(['message' => 'Cart is empty'], 400);
         }
 
@@ -143,6 +184,11 @@ class OrderController extends Controller
                 $product = $item->product;
                 if ($product->stock_quantity < $item->quantity) {
                     DB::rollBack();
+                    
+                    if (!request()->expectsJson()) {
+                        return back()->with('error', 'Insufficient stock for product: ' . $product->name);
+                    }
+                    
                     return response()->json([
                         'message' => 'Insufficient stock for product: ' . $product->name,
                         'product_id' => $product->id,
@@ -163,7 +209,7 @@ class OrderController extends Controller
             // Create Order
             $order = Order::create([
                 'user_id'          => $userId,
-                'total'            => $total,
+                'total_amount'     => $total,
                 'status'           => 'pending',
                 'shipping_address' => $request->shipping_address,
             ]);
@@ -184,19 +230,29 @@ class OrderController extends Controller
                 $product->decrement('stock_quantity', $item->quantity);
             }
 
-
+            // Clear cart
             ShoppingCart::where('user_id', $userId)->delete();
 
             DB::commit();
 
-               SendOrderConfirmationEmail::dispatch($order);
+            // Send confirmation email
+            SendOrderConfirmationEmail::dispatch($order);
+
+            if (!request()->expectsJson()) {
+                return redirect()->route('orders.show', $order->id)
+                    ->with('success', 'Order placed successfully!');
+            }
 
             return response()->json($order->load('items.product'), 201);
+            
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            if (!request()->expectsJson()) {
+                return back()->with('error', 'Order creation failed: ' . $e->getMessage());
+            }
+            
             return response()->json(['message' => 'Order creation failed', 'error' => $e->getMessage()], 500);
         }
-
     }    
-
 }

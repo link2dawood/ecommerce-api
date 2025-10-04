@@ -1,5 +1,7 @@
 @extends('frontend.layouts.app')
 
+@section('title', 'My Dashboard')
+
 @section('content')
     <h2>Shop</h2>
     <div class="row">

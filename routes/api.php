@@ -19,22 +19,16 @@ use App\Http\Controllers\ContactController;
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
-|
 */
 
 // ============================================
 // PUBLIC ROUTES (No Authentication Required)
 // ============================================
 
-// Authentication
-Route::post('/register', [AuthController::class, 'register'])->name('api.register');
-Route::get('/register', [AuthController::class, 'register']);
+// Authentication - User & Admin
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/login', [AuthController::class, 'login']);
+Route::post('/admin/login', [AuthController::class, 'adminLogin']); // Admin login via API
 
 // Products (Public browsing)
 Route::get('/products/featured', [ProductController::class, 'featured']);
@@ -109,11 +103,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/payments/process', [PaymentController::class, 'processPayment']);
     Route::post('/payments/verify', [PaymentController::class, 'verifyPayment']);
 
-    //contact
-     Route::get('/contacts', [ContactController::class, 'index']);     // admin only
-    Route::get('/contacts/{id}', [ContactController::class, 'show']);
+    // Contact
     Route::post('/contacts', [ContactController::class, 'store']);
-    Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
 });
 
 
@@ -121,32 +112,46 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // ADMIN ROUTES (Requires Admin Role)
 // ============================================
 
-Route::middleware(['auth:sanctum', 'api.rate_limit:100,1'])->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
+
+    // Admin can check if they have admin access
+    Route::get('/check', function(Request $request) {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        return response()->json(['message' => 'Admin access granted', 'user' => $request->user()]);
+    });
 
     // Product Management
+    Route::get('/products', [ProductController::class, 'index']);
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
     // Category Management
+    Route::get('/categories', [CategoryController::class, 'index']);
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{id}', [CategoryController::class, 'update']);
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
     // Order Management
-    Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
-    Route::put('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
+    Route::get('/orders', [OrderController::class, 'adminIndex']);
+    Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
 
     // Review Management
-    Route::post('/admin/reviews/{id}/approve', [ReviewController::class, 'approve']);
+    Route::post('/reviews/{id}/approve', [ReviewController::class, 'approve']);
 
     // Coupon Management
-    Route::get('/admin/coupons', [CouponController::class, 'index']);
-    Route::post('/admin/coupons', [CouponController::class, 'store']);
-    Route::put('/admin/coupons/{id}', [CouponController::class, 'update']);
-    Route::delete('/admin/coupons/{id}', [CouponController::class, 'destroy']);
+    Route::get('/coupons', [CouponController::class, 'index']);
+    Route::post('/coupons', [CouponController::class, 'store']);
+    Route::put('/coupons/{id}', [CouponController::class, 'update']);
+    Route::delete('/coupons/{id}', [CouponController::class, 'destroy']);
+
+    // Contact Management
+    Route::get('/contacts', [ContactController::class, 'index']);
+    Route::get('/contacts/{id}', [ContactController::class, 'show']);
+    Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
 
     // Payment Management
-    Route::post('/admin/payments/{orderId}/refund', [PaymentController::class, 'refund']);
+    Route::post('/payments/{orderId}/refund', [PaymentController::class, 'refund']);
 });
-
