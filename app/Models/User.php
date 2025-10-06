@@ -46,6 +46,11 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
     ];
+
+     public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
     public function orders()
     {
         return $this->hasMany(Order::class);
@@ -58,6 +63,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(ShoppingCart::class);
     }
-
+public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class);
+    }
 
 }

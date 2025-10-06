@@ -1,0 +1,1 @@
+product-details.blade.php

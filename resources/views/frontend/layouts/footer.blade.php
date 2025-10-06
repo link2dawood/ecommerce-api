@@ -20,32 +20,35 @@
                         <a class="text-dark mb-2" href="{{ url('/') }}"><i class="fa fa-angle-right mr-2"></i>Home</a>
                         <a class="text-dark mb-2" href="{{ route('shop.index') }}"><i class="fa fa-angle-right mr-2"></i>Shop</a>
                         <a class="text-dark mb-2" href="{{ route('cart.index') }}"><i class="fa fa-angle-right mr-2"></i>Shopping Cart</a>
-                        <a class="text-dark mb-2" href="{{ route('checkout') }}"><i class="fa fa-angle-right mr-2"></i>Checkout</a>
+                        <a class="text-dark mb-2" href="{{ route('checkout.index') }}"><i class="fa fa-angle-right mr-2"></i>Checkout</a>
                         <a class="text-dark" href="{{ route('contact') }}"><i class="fa fa-angle-right mr-2"></i>Contact Us</a>
                     </div>
                 </div>
                 <div class="col-md-4 mb-5">
                     <h5 class="font-weight-bold text-dark mb-4">Account</h5>
                     <div class="d-flex flex-column justify-content-start">
-                        <a class="text-dark mb-2" href="{{ route('profile') }}"><i class="fa fa-angle-right mr-2"></i>Profile</a>
-                        <a class="text-dark mb-2" href="{{ route('wishlist') }}"><i class="fa fa-angle-right mr-2"></i>Wishlist</a>
-                        <a class="text-dark" href="{{ route('orders') }}"><i class="fa fa-angle-right mr-2"></i>Orders</a>
+                        <a class="text-dark mb-2" href="{{ route('profile.index') }}"><i class="fa fa-angle-right mr-2"></i>Profile</a>
+                        <a class="text-dark mb-2" href="{{ route('wishlist.index') }}"><i class="fa fa-angle-right mr-2"></i>Wishlist</a>
+                        <a class="text-dark" href="{{ route('orders.index') }}"><i class="fa fa-angle-right mr-2"></i>Orders</a>
                     </div>
                 </div>
                 <div class="col-md-4 mb-5">
                     <h5 class="font-weight-bold text-dark mb-4">Newsletter</h5>
-                   <form action="{{ route('newsletter.subscribe') }}" method="POST">
-    @csrf
-    <input type="email" name="email" placeholder="Enter your email" required>
-    <button type="submit">Subscribe</button>
-</form>
-
-@if(session('success'))
-    <p style="color: green">{{ session('success') }}</p>
-@endif
-@if($errors->any())
-    <p style="color: red">{{ $errors->first('email') }}</p>
-@endif
+                    <form action="{{ route('newsletter.subscribe') }}" method="POST">
+                        @csrf
+                        <div class="input-group">
+                            <input type="email" name="email" class="form-control border-white p-4" placeholder="Your Email" required>
+                            <div class="input-group-append">
+                                <button class="btn btn-primary px-4" type="submit">Subscribe</button>
+                            </div>
+                        </div>
+                    </form>
+                    @if(session('success'))
+                        <p class="text-success mt-2 mb-0">{{ session('success') }}</p>
+                    @endif
+                    @if($errors->any())
+                        <p class="text-danger mt-2 mb-0">{{ $errors->first('email') }}</p>
+                    @endif
                 </div>
             </div>
         </div>
@@ -60,5 +63,3 @@
     </div>
 </div>
 <!-- Footer End -->
-
-

@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Scout\Searchable;
 
@@ -12,7 +11,7 @@ class Product extends Model
 {
     use HasFactory, Notifiable, Searchable;
 
-     protected $fillable = [
+    protected $fillable = [
         'name',
         'slug',
         'description',
@@ -29,41 +28,46 @@ class Product extends Model
         'category_id',
         'vendor_id',
     ];
-   
-     /**
-     * The attributes that should be cast.
-     */
+
     protected $casts = [
         'featured' => 'boolean',
         'price' => 'decimal:2',
         'sale_price' => 'decimal:2',
     ];
 
+    // Relationships
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
 
     public function categories()
     {
-    return $this->belongsToMany(Category::class, 'product_categories');
+        return $this->belongsToMany(Category::class, 'product_categories');
     }
-     /**public function category()
-    {
-        return $this->belongsTo(Category::class, 'category_id');
-    }*/
+
     public function images()
     {
-    return $this->hasMany(ProductImage::class);
+        return $this->hasMany(ProductImage::class);
     }
-     public function orderItems()
+
+    public function orderItems()
     {
-    return $this->hasMany(OrderItem::class);
+        return $this->hasMany(OrderItem::class);
     }
+
     public function reviews()
     {
-    return $this->hasMany(Review::class);
+        return $this->hasMany(Review::class);
     }
-        public function shoppingCarts()
+
+    public function shoppingCarts()
     {
         return $this->hasMany(ShoppingCart::class);
     }
 
-
-}    
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class);
+    }
+}

@@ -13,27 +13,65 @@ class Category extends Model
         'name',
         'slug',
         'description',
+        'image',
         'parent_id',
         'is_active',
+        'order'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
-    public function products()
-{
-    return $this->belongsToMany(Product::class, 'product_categories');
-}
- /**public function products()
-    {
-        return $this->hasMany(Product::class, 'category_id');
-    }*/
-     public function parent()
+
+    /**
+     * Get the parent category
+     */
+    public function parent()
     {
         return $this->belongsTo(Category::class, 'parent_id');
     }
-      public function children()
+
+    /**
+     * Get all child categories
+     */
+    public function children()
     {
-        return $this->hasMany(Category::class, 'parent_id');
+        return $this->hasMany(Category::class, 'parent_id')->where('is_active', true);
+    }
+
+    /**
+     * Get all products in this category
+     */
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    /**
+     * Get the route key for the model
+     */
+    public function getRouteKeyName()
+    {
+        return 'slug';
+    }
+
+    /**
+     * Boot the model
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($category) {
+            if (empty($category->slug)) {
+                $category->slug = \Str::slug($category->name);
+            }
+        });
+
+        static::updating(function ($category) {
+            if ($category->isDirty('name') && empty($category->slug)) {
+                $category->slug = \Str::slug($category->name);
+            }
+        });
     }
 }

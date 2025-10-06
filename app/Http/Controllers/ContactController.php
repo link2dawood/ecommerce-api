@@ -8,14 +8,24 @@ use Illuminate\Support\Facades\Auth;
 
 class ContactController extends Controller
 {
-    // List all contacts (admin use)
-    public function index()
+    /**
+     * Display contact page (frontend) or JSON list (API).
+     */
+    public function index(Request $request)
     {
-        $contacts = Contact::with('user')->latest()->get();
-        return response()->json($contacts, 200);
+        // ✅ If it's an API request (via Sanctum / fetch / Postman)
+        if ($request->expectsJson() || $request->is('api/*')) {
+            $contacts = Contact::with('user')->latest()->get();
+            return response()->json($contacts, 200);
+        }
+
+        // ✅ Otherwise, return a Blade view for web users
+        return view('frontend.contact');
     }
 
-    // Store contact message
+    /**
+     * Store a new contact message (Sanctum + normal form supported)
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -33,20 +43,30 @@ class ContactController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        return response()->json([
-            'message' => 'Your message has been sent successfully!',
-            'data'    => $contact
-        ], 201);
+        // ✅ Return JSON for API calls
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'message' => 'Your message has been sent successfully!',
+                'data'    => $contact
+            ], 201);
+        }
+
+        // ✅ Redirect back for normal form submissions
+        return redirect()->back()->with('success', 'Your message has been sent successfully!');
     }
 
-    // Show single message
+    /**
+     * Show single message (API use)
+     */
     public function show($id)
     {
         $contact = Contact::findOrFail($id);
         return response()->json($contact, 200);
     }
 
-    // Delete message
+    /**
+     * Delete message (API use, Sanctum protected)
+     */
     public function destroy($id)
     {
         $contact = Contact::findOrFail($id);
