@@ -1,4 +1,6 @@
-@extends('layouts.header')
+@extends('frontend.layouts.app')
+
+@section('title', 'Edit Profile')
 
 @section('content')
 <div class="container mt-5">
@@ -36,7 +38,7 @@
                 </div>
 
                 <div class="d-flex justify-content-between">
-                    <a href="{{ route('profile') }}" class="btn btn-secondary">Cancel</a>
+                    <a href="{{ route('profile.index') }}" class="btn btn-secondary">Cancel</a>
                     <button type="submit" class="btn btn-primary">Update Profile</button>
                 </div>
             </form>

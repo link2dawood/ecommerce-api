@@ -1,4 +1,6 @@
-@extends('layouts.header')
+@extends('frontend.layouts.app')
+
+@section('title', 'My Orders')
 
 @section('content')
 <div class="container mt-5">

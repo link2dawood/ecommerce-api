@@ -55,17 +55,17 @@
                     </a>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-3">
-                    <a href="{{ route('orders') }}" class="btn btn-block btn-outline-primary py-3">
+                    <a href="{{ route('orders.index') }}" class="btn btn-block btn-outline-primary py-3">
                         <i class="fas fa-box mr-2"></i> My Orders
                     </a>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-3">
-                    <a href="{{ route('wishlist') }}" class="btn btn-block btn-outline-primary py-3">
+                    <a href="{{ route('wishlist.index') }}" class="btn btn-block btn-outline-primary py-3">
                         <i class="fas fa-heart mr-2"></i> Wishlist
                     </a>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-3">
-                    <a href="{{ route('profile') }}" class="btn btn-block btn-outline-primary py-3">
+                    <a href="{{ route('profile.index') }}" class="btn btn-block btn-outline-primary py-3">
                         <i class="fas fa-user mr-2"></i> Profile Settings
                     </a>
                 </div>
