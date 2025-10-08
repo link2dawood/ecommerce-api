@@ -16,7 +16,7 @@ class Category extends Model
         'image',
         'parent_id',
         'is_active',
-        'order'
+        'sort_order'
     ];
 
     protected $casts = [

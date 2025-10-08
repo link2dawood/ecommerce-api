@@ -162,12 +162,14 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::delete('/{id}', [AdminCategoryController::class, 'destroy'])->name('destroy');
     });
     
-    // Orders Management
-    Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/', [AdminOrderController::class, 'index'])->name('index');
-        Route::get('/{id}', [AdminOrderController::class, 'show'])->name('show');
-        Route::put('/{id}/status', [AdminOrderController::class, 'updateStatus'])->name('status');
-    });
+   // Orders Management
+Route::resource('orders', AdminOrderController::class);
+
+// Additional routes for status updates
+Route::patch('orders/{order}/status', [AdminOrderController::class, 'updateStatus'])
+    ->name('orders.update-status');
+Route::patch('orders/{order}/payment-status', [AdminOrderController::class, 'updatePaymentStatus'])
+    ->name('orders.update-payment-status');
     
     // Contacts Management
     Route::prefix('contacts')->name('contacts.')->group(function () {
