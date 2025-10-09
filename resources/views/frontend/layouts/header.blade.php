@@ -1,10 +1,61 @@
 <!-- Topbar Start -->
 <div class="container-fluid">
+    <div class="row bg-secondary py-2 px-xl-5">
+        <div class="col-lg-6 d-none d-lg-block">
+            <div class="d-inline-flex align-items-center">
+                <a class="text-dark" href="">FAQs</a>
+                <span class="text-muted px-2">|</span>
+                <a class="text-dark" href="">Help</a>
+                <span class="text-muted px-2">|</span>
+                <a class="text-dark" href="">Support</a>
+            </div>
+        </div>
+        <div class="col-lg-6 text-center text-lg-right">
+            <div class="d-inline-flex align-items-center">
+                @guest
+                    <a class="text-dark px-2" href="{{ route('login') }}">
+                        <i class="fas fa-sign-in-alt mr-1"></i> Login
+                    </a>
+                    <span class="text-muted px-1">|</span>
+                    <a class="text-dark px-2" href="{{ route('register') }}">
+                        <i class="fas fa-user-plus mr-1"></i> Register
+                    </a>
+                @else
+                    <div class="dropdown">
+                        <a class="text-dark px-2 dropdown-toggle" href="#" id="userDropdown" role="button" 
+                           data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fas fa-user mr-1"></i> {{ Auth::user()->name }}
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown">
+                            <a class="dropdown-item" href="{{ route('dashboard') }}">
+                                <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                            </a>
+                            <a class="dropdown-item" href="{{ route('orders.index') }}">
+                                <i class="fas fa-shopping-bag mr-2"></i> My Orders
+                            </a>
+                            <a class="dropdown-item" href="{{ route('profile.index') }}">
+                                <i class="fas fa-user-edit mr-2"></i> Profile
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                @endguest
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Header -->
     <div class="row align-items-center py-3 px-xl-5">
         <div class="col-lg-3 d-none d-lg-block">
             <a href="{{ route('home') }}" class="text-decoration-none">
                 <h1 class="m-0 display-5 font-weight-semi-bold">
-                    <span class="text-primary font-weight-bold border px-3 mr-1">E</span>Shopper
+                    <span class="text-primary font-weight-bold border px-3 mr-1">E</span>Commerce-API
                 </h1>
             </a>
         </div>
@@ -22,12 +73,35 @@
         </div>
         <div class="col-lg-3 col-6 text-right">
             <a href="{{ route('wishlist.index') }}" class="btn border">
-                <i class="fas fa-heart text-primary"></i>
-                <span class="badge">{{ auth()->check() ? auth()->user()->wishlists()->count() : 0 }}</span>
+                <div class="cart-icon-wrapper">
+                    <i class="fas fa-heart text-primary"></i>
+                    @php
+                        $wishlistCount = auth()->check() ? auth()->user()->wishlists()->count() : 0;
+                    @endphp
+                    @if($wishlistCount > 0)
+                        <span class="cart-badge">{{ $wishlistCount }}</span>
+                    @endif
+                </div>
             </a>
             <a href="{{ route('cart.index') }}" class="btn border">
-                <i class="fas fa-shopping-cart text-primary"></i>
-                <span class="badge">{{ session('cart_count', 0) }}</span>
+                <div class="cart-icon-wrapper">
+                    <i class="fas fa-shopping-cart text-primary"></i>
+                    @php
+                        if(Auth::check()) {
+                            $cartCount = \App\Models\ShoppingCart::where('user_id', Auth::id())->sum('quantity');
+                        } else {
+                            $cart = session()->get('cart', []);
+                            $cartCount = 0;
+                            foreach($cart as $item) {
+                                $cartCount += $item['quantity'] ?? 0;
+                            }
+                        }
+                    @endphp
+                    @if($cartCount > 0)
+                        <span class="cart-badge">{{ $cartCount }}</span>
+                    @endif
+                </div>
+                <span class="d-none d-lg-inline ml-2">Cart</span>
             </a>
         </div>
     </div>
@@ -74,7 +148,7 @@
             <nav class="navbar navbar-expand-lg bg-light navbar-light py-3 py-lg-0 px-0">
                 <a href="{{ route('home') }}" class="text-decoration-none d-block d-lg-none">
                     <h1 class="m-0 display-5 font-weight-semi-bold">
-                        <span class="text-primary font-weight-bold border px-3 mr-1">E</span>Shopper
+                        <span class="text-primary font-weight-bold border px-3 mr-1">E</span>Commerce-API
                     </h1>
                 </a>
                 <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarCollapse">
@@ -100,6 +174,11 @@
                                 <a href="{{ route('checkout.index') }}" class="dropdown-item">Checkout</a>
                             </div>
                         </div>
+                        @auth
+                            <a href="{{ route('orders.index') }}" class="nav-item nav-link {{ request()->routeIs('orders.*') ? 'active' : '' }}">
+                                My Orders
+                            </a>
+                        @endauth
                         <a href="{{ route('contact') }}" class="nav-item nav-link {{ request()->routeIs('contact') ? 'active' : '' }}">
                             Contact
                         </a>
@@ -118,6 +197,7 @@
                                     {{ Auth::user()->name }}
                                 </a>
                                 <div class="dropdown-menu rounded-0 m-0">
+                                    <a href="{{ route('dashboard') }}" class="dropdown-item">My Dashboard</a>
                                     <a href="{{ route('profile.index') }}" class="dropdown-item">My Profile</a>
                                     <a href="{{ route('orders.index') }}" class="dropdown-item">My Orders</a>
                                     <a href="{{ route('wishlist.index') }}" class="dropdown-item">My Wishlist</a>
@@ -176,3 +256,39 @@
     </div>
 </div>
 <!-- Navbar End -->
+
+<style>
+.cart-icon-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #ff6b6b;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1.2;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.navbar-nav .nav-link.active {
+    color: #D19C97 !important;
+    font-weight: 600;
+}
+
+.dropdown-menu {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn.border:hover {
+    background-color: #f8f9fa;
+}
+</style>

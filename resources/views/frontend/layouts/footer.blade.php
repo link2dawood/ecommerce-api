@@ -17,6 +17,7 @@
                 <div class="col-md-4 mb-5">
                     <h5 class="font-weight-bold text-dark mb-4">Quick Links</h5>
                     <div class="d-flex flex-column justify-content-start">
+                         <a class="text-dark" href="{{ route('dashboard') }}"><i class="fa fa-angle-right mr-2"></i>Dashboard</a>
                         <a class="text-dark mb-2" href="{{ url('/') }}"><i class="fa fa-angle-right mr-2"></i>Home</a>
                         <a class="text-dark mb-2" href="{{ route('shop.index') }}"><i class="fa fa-angle-right mr-2"></i>Shop</a>
                         <a class="text-dark mb-2" href="{{ route('cart.index') }}"><i class="fa fa-angle-right mr-2"></i>Shopping Cart</a>
@@ -33,16 +34,20 @@
                     </div>
                 </div>
                 <div class="col-md-4 mb-5">
-                    <h5 class="font-weight-bold text-dark mb-4">Newsletter</h5>
-                    <form action="{{ route('newsletter.subscribe') }}" method="POST">
-                        @csrf
-                        <div class="input-group">
-                            <input type="email" name="email" class="form-control border-white p-4" placeholder="Your Email" required>
-                            <div class="input-group-append">
-                                <button class="btn btn-primary px-4" type="submit">Subscribe</button>
+                        <h5 class="font-weight-bold text-dark mb-4">Newsletter</h5>
+                        <form action="">
+                            <div class="form-group">
+                                <input type="text" class="form-control border-0 py-4" placeholder="Your Name" required="required" />
                             </div>
-                        </div>
-                    </form>
+                            <div class="form-group">
+                                <input type="email" class="form-control border-0 py-4" placeholder="Your Email"
+                                    required="required" />
+                            </div>
+                            <div>
+                                <button class="btn btn-primary btn-block border-0 py-3" type="submit">Subscribe Now</button>
+                            </div>
+                        </form>
+                    </div>
                     @if(session('success'))
                         <p class="text-success mt-2 mb-0">{{ session('success') }}</p>
                     @endif

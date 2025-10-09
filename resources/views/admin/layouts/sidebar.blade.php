@@ -22,15 +22,22 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('admin.contacts.*') ? 'active' : '' }}" href="{{ route('admin.contacts.index') }}">
+                <a class="nav-link {{ request()->routeIs('admin.contacts.*') ? 'active' : '' }}" href="{{ route('admin.contacts.index') }}"
+>
                     <i class="fas fa-envelope me-2"></i> Contact Messages
                 </a>
             </li>
+            
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.newsletters.*') ? 'active' : '' }}" href="{{ route('admin.newsletters.index') }}">
                     <i class="fas fa-newspaper me-2"></i> Newsletter
                 </a>
             </li>
+            <li class="nav-item">
+    <a class="nav-link {{ request()->routeIs('admin.coupons.*') ? 'active' : '' }}" href="{{ route('admin.coupons.index') }}">
+        <i class="fas fa-ticket-alt me-2"></i> Coupons
+    </a>
+</li>
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}" href="{{ route('admin.settings') }}">
                     <i class="fas fa-cog me-2"></i> Settings

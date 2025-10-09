@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminProductController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminCategoryController;
+use App\Http\Controllers\Admin\AdminCouponController;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,6 +45,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 // Shop Routes (Public)
 Route::prefix('shop')->name('shop.')->group(function () {
     Route::get('/', [ShopController::class, 'index'])->name('index');
+    Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+
     Route::get('/search', [ShopController::class, 'search'])->name('search');
     Route::get('/product/{slug}', [ShopController::class, 'show'])->name('detail');
 });
@@ -51,8 +54,14 @@ Route::prefix('shop')->name('shop.')->group(function () {
 // Category Routes (Public)
 Route::get('/category/{slug}', [CategoryController::class, 'show'])->name('category.show');
 
-// Product Routes (Public - Alternative)
+// Frontend Product Routes
+Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::get('/products/{id}', [ProductController::class, 'show'])->name('products.show');
+Route::get('/products/featured', [ProductController::class, 'featured'])->name('products.featured');
+Route::get('/products/new-arrivals', [ProductController::class, 'newArrivals'])->name('products.new-arrivals');
+Route::get('/products/on-sale', [ProductController::class, 'onSale'])->name('products.on-sale');
+Route::get('/search', [ProductController::class, 'search'])->name('products.search');
 
 // Cart Routes (Public - Can add to cart without login)
 Route::prefix('cart')->name('cart.')->group(function () {
@@ -129,7 +138,6 @@ Route::middleware(['auth'])->group(function () {
 | ADMIN ROUTES
 |--------------------------------------------------------------------------
 */
-
 // Admin Login (Separate from User Login)
 Route::middleware('guest')->prefix('admin')->group(function () {
     Route::get('/login', fn () => view('admin.auth.login'))->name('admin.login');
@@ -162,25 +170,64 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
         Route::delete('/{id}', [AdminCategoryController::class, 'destroy'])->name('destroy');
     });
     
-   // Orders Management
-Route::resource('orders', AdminOrderController::class);
-
-// Additional routes for status updates
-Route::patch('orders/{order}/status', [AdminOrderController::class, 'updateStatus'])
-    ->name('orders.update-status');
-Route::patch('orders/{order}/payment-status', [AdminOrderController::class, 'updatePaymentStatus'])
-    ->name('orders.update-payment-status');
+    // Orders Management
+    Route::resource('orders', AdminOrderController::class);
+    // Additional routes for status updates
+    Route::patch('orders/{order}/status', [AdminOrderController::class, 'updateStatus'])
+        ->name('orders.update-status');
+    Route::patch('orders/{order}/payment-status', [AdminOrderController::class, 'updatePaymentStatus'])
+        ->name('orders.update-payment-status');
     
-    // Contacts Management
+    // 📩 Contacts Management (Admin)
     Route::prefix('contacts')->name('contacts.')->group(function () {
-        Route::get('/', [ContactController::class, 'index'])->name('index');
-        Route::get('/{id}', [ContactController::class, 'show'])->name('show');
-        Route::delete('/{id}', [ContactController::class, 'destroy'])->name('destroy');
+        Route::get('/', [App\Http\Controllers\Admin\ContactController::class, 'index'])->name('index');
+        Route::get('/{id}', [App\Http\Controllers\Admin\ContactController::class, 'show'])->name('show');
+        Route::delete('/{id}', [App\Http\Controllers\Admin\ContactController::class, 'destroy'])->name('destroy');
+        // 🧹 Added Routes
+        Route::delete('/bulk-delete', [App\Http\Controllers\Admin\ContactController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::post('/{id}/mark-as-read', [App\Http\Controllers\Admin\ContactController::class, 'markAsRead'])->name('mark-as-read');
+        Route::post('/{id}/mark-as-unread', [App\Http\Controllers\Admin\ContactController::class, 'markAsUnread'])->name('mark-as-unread');
     });
     
-    // Newsletters Management
-    Route::get('/newsletters', [NewsletterController::class, 'index'])->name('newsletters.index');
+    // 🎟️ Coupons Management
+    Route::prefix('coupons')->name('coupons.')->group(function () {
+        Route::get('/', [AdminCouponController::class, 'index'])->name('index');
+        Route::get('/create', [AdminCouponController::class, 'create'])->name('create');
+        Route::post('/', [AdminCouponController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [AdminCouponController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [AdminCouponController::class, 'update'])->name('update');
+        Route::delete('/{id}', [AdminCouponController::class, 'destroy'])->name('destroy');
+    });
     
-    // Settings
-    Route::get('/settings', fn () => view('admin.settings'))->name('settings');
+    // ⭐ Reviews Management
+    Route::prefix('reviews')->name('reviews.')->group(function () {
+        Route::get('/', [AdminReviewController::class, 'index'])->name('index');
+        Route::get('/{id}', [AdminReviewController::class, 'show'])->name('show');
+        Route::post('/{id}/approve', [AdminReviewController::class, 'approve'])->name('approve');
+        Route::post('/{id}/reject', [AdminReviewController::class, 'reject'])->name('reject');
+        Route::delete('/{id}', [AdminReviewController::class, 'destroy'])->name('destroy');
+    });
+    
+    // 💳 Payments Management
+    Route::prefix('payments')->name('payments.')->group(function () {
+        Route::get('/', [AdminPaymentController::class, 'index'])->name('index');
+        Route::get('/{id}', [AdminPaymentController::class, 'show'])->name('show');
+        Route::post('/{orderId}/refund', [AdminPaymentController::class, 'refund'])->name('refund');
+    });
+       
+      // 📧 Newsletters Management
+    Route::prefix('newsletters')->name('newsletters.')->group(function () {
+        Route::get('/', [NewsletterController::class, 'index'])->name('index');
+        Route::delete('/{id}', [NewsletterController::class, 'destroy'])->name('destroy');
+        Route::delete('/bulk-delete', [NewsletterController::class, 'bulkDelete'])->name('bulkDelete'); // Changed here
+        Route::post('/export', [NewsletterController::class, 'export'])->name('export');
+    });
+    
+    // ⚙️ Settings
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/clear-cache', [SettingsController::class, 'clearCache'])->name('settings.clear-cache');
+    
+    // 🚪 Admin Logout
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
