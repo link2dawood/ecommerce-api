@@ -6,7 +6,7 @@
 <div class="container">
     <h2>Checkout</h2>
 
-    <form method="POST" action="{{ route('checkout.store') }}">
+<form method="POST" action="{{ route('checkout.process') }}">
         @csrf
 
         <div class="mb-3">

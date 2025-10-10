@@ -118,19 +118,17 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Checkout Routes
-    Route::prefix('checkout')->name('checkout.')->group(function () {
-        Route::get('/', [CheckoutController::class, 'index'])->name('index');
-        Route::post('/', [OrderController::class, 'store'])->name('store');
-        Route::post('/process', [CheckoutController::class, 'process'])->name('process');
-        Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
-    });
+Route::prefix('checkout')->name('checkout.')->middleware('auth')->group(function () {
+    Route::get('/', [CheckoutController::class, 'index'])->name('index');
+    Route::post('/process', [CheckoutController::class, 'process'])->name('process');
+    Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
+});
     
     // Order Routes
-    Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/', [OrderController::class, 'index'])->name('index');
-        Route::get('/{id}', [OrderController::class, 'show'])->name('show');
-        Route::get('/{order}', [OrderController::class, 'show'])->name('show.order');
-    });
+    Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+    Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+    Route::get('/orders/{id}/track', [OrderController::class, 'track'])->name('orders.track');
 });
 
 /*

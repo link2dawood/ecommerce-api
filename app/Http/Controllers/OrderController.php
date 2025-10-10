@@ -57,10 +57,13 @@ class OrderController extends Controller
         try {
             // Restore stock
             foreach ($order->items as $item) {
-                $item->product->increment('stock_quantity', $item->quantity);
+                if ($item->product) {
+                    $item->product->increment('stock_quantity', $item->quantity);
+                }
             }
 
             $order->status = 'cancelled';
+            $order->payment_status = 'refunded';
             $order->save();
 
             DB::commit();
@@ -132,7 +135,7 @@ class OrderController extends Controller
         $this->authorizeAdmin();
 
         $validator = \Validator::make($request->all(), [
-            'status' => 'required|in:pending,processing,shipped,delivered,cancelled',
+            'status' => 'required|in:pending,processing,shipped,delivered,cancelled,refunded',
         ]);
 
         if ($validator->fails()) {
@@ -144,6 +147,14 @@ class OrderController extends Controller
 
         $order = Order::findOrFail($id);
         $order->status = $request->status;
+        
+        // Update payment status based on order status
+        if ($request->status === 'delivered') {
+            $order->payment_status = 'paid';
+        } elseif ($request->status === 'cancelled') {
+            $order->payment_status = 'refunded';
+        }
+        
         $order->save();
 
         if (!request()->expectsJson()) {
@@ -164,6 +175,7 @@ class OrderController extends Controller
     {
         $request->validate([
             'shipping_address' => 'required|string|max:500',
+            'payment_method' => 'nullable|in:cod,card,paypal',
         ]);
 
         $userId = Auth::id();
@@ -182,6 +194,11 @@ class OrderController extends Controller
             // Validate stock availability for all items
             foreach ($cartItems as $item) {
                 $product = $item->product;
+                if (!$product) {
+                    DB::rollBack();
+                    return back()->with('error', 'Some products in your cart no longer exist');
+                }
+                
                 if ($product->stock_quantity < $item->quantity) {
                     DB::rollBack();
                     
@@ -198,32 +215,52 @@ class OrderController extends Controller
                 }
             }
 
-            // Calculate total with current product prices
-            $total = 0;
+            // Calculate totals with current product prices
+            $subtotal = 0;
             foreach ($cartItems as $item) {
                 $product = $item->product;
                 $currentPrice = $product->sale_price ?? $product->price;
-                $total += $currentPrice * $item->quantity;
+                $subtotal += $currentPrice * $item->quantity;
             }
+
+            $taxAmount = 0; // Calculate tax if needed: $subtotal * 0.1 for 10% tax
+            $shippingAmount = 0; // Add shipping cost if needed
+            $discountAmount = 0; // Apply discount if needed
+            $totalAmount = $subtotal + $taxAmount + $shippingAmount - $discountAmount;
+
+            // Generate unique order number
+            $orderNumber = $this->generateOrderNumber();
 
             // Create Order
             $order = Order::create([
+                'order_number'     => $orderNumber,
                 'user_id'          => $userId,
-                'total_amount'     => $total,
                 'status'           => 'pending',
+                'payment_status'   => 'pending',
+                'payment_method'   => $request->payment_method ?? 'cod',
+                'subtotal'         => $subtotal,
+                'tax_amount'       => $taxAmount,
+                'shipping_amount'  => $shippingAmount,
+                'discount_amount'  => $discountAmount,
+                'total_amount'     => $totalAmount,
+                'currency'         => 'USD',
                 'shipping_address' => $request->shipping_address,
+                'billing_address'  => $request->billing_address ?? $request->shipping_address,
+                'notes'            => $request->notes ?? null,
             ]);
 
             // Create Order Items and decrement stock
             foreach ($cartItems as $item) {
                 $product = $item->product;
                 $currentPrice = $product->sale_price ?? $product->price;
+                $itemTotal = $currentPrice * $item->quantity;
 
                 OrderItem::create([
                     'order_id'   => $order->id,
                     'product_id' => $item->product_id,
                     'quantity'   => $item->quantity,
                     'price'      => $currentPrice,
+                    'total'      => $itemTotal,
                 ]);
 
                 // Decrement stock
@@ -236,7 +273,12 @@ class OrderController extends Controller
             DB::commit();
 
             // Send confirmation email
-            SendOrderConfirmationEmail::dispatch($order);
+            try {
+                SendOrderConfirmationEmail::dispatch($order);
+            } catch (\Exception $e) {
+                // Log email error but don't fail the order
+                \Log::error('Failed to send order confirmation email: ' . $e->getMessage());
+            }
 
             if (!request()->expectsJson()) {
                 return redirect()->route('orders.show', $order->id)
@@ -248,11 +290,30 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             
+            \Log::error('Order creation failed', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             if (!request()->expectsJson()) {
                 return back()->with('error', 'Order creation failed: ' . $e->getMessage());
             }
             
             return response()->json(['message' => 'Order creation failed', 'error' => $e->getMessage()], 500);
         }
-    }    
+    }
+
+    /**
+     * Generate a unique order number
+     */
+    private function generateOrderNumber()
+    {
+        do {
+            // Format: ORD-YYYYMMDD-RANDOM (e.g., ORD-20251010-ABC123)
+            $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
+        } while (Order::where('order_number', $orderNumber)->exists());
+
+        return $orderNumber;
+    }
 }
