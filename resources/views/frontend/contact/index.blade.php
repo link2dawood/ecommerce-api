@@ -2,6 +2,7 @@
 @section('title', 'Contact Us')
 
 @section('content')
+<!-- Save this file as: resources/views/frontend/contact/index.blade.php -->
 <div class="container py-5">
     <div class="row">
         <div class="col-lg-8 mx-auto">

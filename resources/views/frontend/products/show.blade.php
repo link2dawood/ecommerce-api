@@ -67,7 +67,24 @@
         <!-- Product Info -->
         <div class="col-lg-7">
             <div class="mb-3">
-                <h2 class="font-weight-bold">{{ $product->name }}</h2>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h2 class="font-weight-bold flex-grow-1">{{ $product->name }}</h2>
+                    
+                    <!-- Wishlist Button (Right Side) -->
+                    @auth
+                        <button class="btn btn-outline-danger wishlist-toggle ml-3" 
+                                data-product-id="{{ $product->id }}"
+                                style="min-width: 45px; height: 45px;">
+                            <i class="fas fa-heart {{ isset($isInWishlist) && $isInWishlist ? '' : 'far' }}"></i>
+                        </button>
+                    @else
+                        <a href="{{ route('login') }}" class="btn btn-outline-danger ml-3" 
+                           style="min-width: 45px; height: 45px;"
+                           title="Add to Wishlist">
+                            <i class="far fa-heart"></i>
+                        </a>
+                    @endauth
+                </div>
                 
                 <!-- Rating -->
                 <div class="d-flex align-items-center mb-3">
@@ -300,8 +317,20 @@
                                          alt="{{ $relatedProduct->name }}"
                                          style="height: 200px; object-fit: cover;">
                                 </a>
-                                @if($relatedProduct->stock_quantity < 10)
+                                
+                                <!-- Wishlist Button for Related Products -->
+                                @auth
+                                    <button class="btn btn-light btn-wishlist position-absolute wishlist-toggle" 
+                                            data-product-id="{{ $relatedProduct->id }}"
+                                            style="top: 10px; left: 10px; width: 35px; height: 35px; padding: 0; border-radius: 50%;">
+                                        <i class="fas fa-heart {{ in_array($relatedProduct->id, $relatedWishlistIds ?? []) ? 'text-danger' : 'text-muted' }}"></i>
+                                    </button>
+                                @endauth
+                                
+                                @if($relatedProduct->stock_quantity < 10 && $relatedProduct->stock_quantity > 0)
                                     <span class="badge badge-warning position-absolute" style="top: 10px; right: 10px;">Low Stock</span>
+                                @elseif($relatedProduct->stock_quantity == 0)
+                                    <span class="badge badge-danger position-absolute" style="top: 10px; right: 10px;">Out of Stock</span>
                                 @endif
                             </div>
                             <div class="card-body d-flex flex-column">
@@ -317,13 +346,15 @@
                                            class="btn btn-outline-primary btn-sm flex-fill">
                                             <i class="fas fa-eye"></i> View
                                         </a>
-                                        <form action="{{ route('cart.add.id', $relatedProduct->id) }}" method="POST" class="flex-fill">
-                                            @csrf
-                                            <input type="hidden" name="quantity" value="1">
-                                            <button type="submit" class="btn btn-primary btn-sm w-100">
-                                                <i class="fas fa-shopping-cart"></i> Add
-                                            </button>
-                                        </form>
+                                        @if($relatedProduct->stock_quantity > 0)
+                                            <form action="{{ route('cart.add.id', $relatedProduct->id) }}" method="POST" class="flex-fill">
+                                                @csrf
+                                                <input type="hidden" name="quantity" value="1">
+                                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                    <i class="fas fa-shopping-cart"></i> Add
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -362,6 +393,76 @@ $(document).ready(function() {
         }
     });
 
+    // Wishlist Toggle (Main Product and Related Products)
+    $('.wishlist-toggle').on('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const button = $(this);
+        const productId = button.data('product-id');
+        const icon = button.find('i');
+        const textElement = button.find('.wishlist-text');
+        const isInWishlist = icon.hasClass('fas') && !icon.hasClass('far');
+        
+        // Disable button during request
+        button.prop('disabled', true);
+        
+        if (isInWishlist) {
+            // Remove from wishlist
+            $.ajax({
+                url: `/wishlist/remove/${productId}`,
+                type: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    icon.removeClass('fas').addClass('far');
+                    if (textElement.length) {
+                        textElement.text('Add to Wishlist');
+                        button.removeClass('btn-danger').addClass('btn-outline-danger');
+                    } else {
+                        icon.removeClass('text-danger').addClass('text-muted');
+                    }
+                    showNotification('success', 'Removed from wishlist');
+                    updateWishlistCount(-1);
+                },
+                error: function(xhr) {
+                    showNotification('error', 'Error removing from wishlist');
+                },
+                complete: function() {
+                    button.prop('disabled', false);
+                }
+            });
+        } else {
+            // Add to wishlist
+            $.ajax({
+                url: `/wishlist/add/${productId}`,
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    icon.removeClass('far').addClass('fas');
+                    if (textElement.length) {
+                        textElement.text('In Wishlist');
+                        button.removeClass('btn-outline-danger').addClass('btn-danger');
+                    } else {
+                        icon.removeClass('text-muted').addClass('text-danger');
+                    }
+                    showNotification('success', 'Added to wishlist');
+                    updateWishlistCount(1);
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Error adding to wishlist';
+                    showNotification('error', message);
+                },
+                complete: function() {
+                    button.prop('disabled', false);
+                }
+            });
+        }
+    });
+
     // Rating Stars
     $('.rating-stars i').click(function() {
         let rating = $(this).data('rating');
@@ -385,6 +486,36 @@ $(document).ready(function() {
             });
         }
     );
+    
+    // Show notification function
+    function showNotification(type, message) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 250px;" role="alert">
+                ${message}
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            </div>
+        `;
+        $('body').append(alertHtml);
+        
+        setTimeout(function() {
+            $('.alert').fadeOut(function() {
+                $(this).remove();
+            });
+        }, 3000);
+    }
+    
+    // Update wishlist count in header
+    function updateWishlistCount(change) {
+        const countElement = $('.wishlist-count');
+        if (countElement.length) {
+            const currentCount = parseInt(countElement.text()) || 0;
+            countElement.text(currentCount + change);
+        }
+    }
 });
 </script>
 @endpush
@@ -409,6 +540,21 @@ $(document).ready(function() {
 
 .product-image-wrapper {
     overflow: hidden;
+}
+
+.btn-wishlist {
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.btn-wishlist:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.btn-wishlist i {
+    font-size: 1rem;
+    transition: all 0.3s ease;
 }
 
 .d-flex.gap-2 {
@@ -464,6 +610,16 @@ $(document).ready(function() {
 
 .text-primary {
     color: #D19C97 !important;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
 }
 </style>
 @endsection

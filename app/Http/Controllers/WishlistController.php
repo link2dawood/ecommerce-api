@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Wishlist;
@@ -16,7 +15,7 @@ class WishlistController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return response()->json($wishlist, 200);
+        return view('frontend.wishlist.index', compact('wishlist'));
     }
 
     public function store(Request $request)
@@ -39,13 +38,53 @@ class WishlistController extends Controller
             'product_id' => $request->product_id,
         ]);
 
-        return response()->json($wishlistItem->load('product'), 201);
+        return response()->json([
+            'message' => 'Product added to wishlist',
+            'data' => $wishlistItem->load('product')
+        ], 201);
+    }
+
+    public function add(Product $product)
+    {
+        // Check if already in wishlist
+        $existing = Wishlist::where('user_id', Auth::id())
+            ->where('product_id', $product->id)
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'Product already in wishlist'], 400);
+        }
+
+        $wishlistItem = Wishlist::create([
+            'user_id' => Auth::id(),
+            'product_id' => $product->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Product added to wishlist',
+            'data' => $wishlistItem->load('product')
+        ], 201);
     }
 
     public function destroy($id)
     {
         $wishlistItem = Wishlist::where('user_id', Auth::id())
-            ->where('product_id', $id)
+            ->where('id', $id)
+            ->first();
+
+        if (!$wishlistItem) {
+            return response()->json(['message' => 'Product not in wishlist'], 404);
+        }
+
+        $wishlistItem->delete();
+
+        return response()->json(['message' => 'Removed from wishlist'], 200);
+    }
+
+    public function remove(Product $product)
+    {
+        $wishlistItem = Wishlist::where('user_id', Auth::id())
+            ->where('product_id', $product->id)
             ->first();
 
         if (!$wishlistItem) {

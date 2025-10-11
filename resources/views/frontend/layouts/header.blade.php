@@ -162,7 +162,7 @@
                         <a href="{{ route('shop.index') }}" class="nav-item nav-link {{ request()->routeIs('shop.*') ? 'active' : '' }}">
                             Shop
                         </a>
-                        <a href="{{ route('products.show', 1) }}" class="nav-item nav-link {{ request()->routeIs('products.show') ? 'active' : '' }}">
+                        <a href="{{ route('products.index') }}" class="nav-item nav-link {{ request()->routeIs('products.show') ? 'active' : '' }}">
                             Shop Detail
                         </a>
                         <div class="nav-item dropdown">

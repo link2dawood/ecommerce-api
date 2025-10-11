@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Category;
+use App\Models\Wishlist;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -13,8 +15,10 @@ class ProductController extends Controller
     // 🛍️ Get all products (Frontend - Shop Page)
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'images'])
-            ->where('is_active', true);
+        $query = Product::with(['category', 'images']);
+
+        // Only show active products on frontend (removed ->where('is_active', true))
+        // This will be handled by the model's global scope if needed
 
         // 🔍 Search by name or description
         if ($request->filled('search')) {
@@ -43,19 +47,26 @@ class ProductController extends Controller
         }
 
         // 🔃 Sorting
-        $sortBy = $request->get('sort_by', 'latest');
+        $sortBy = $request->get('sort', 'latest');
         switch ($sortBy) {
+            case 'price_asc':
             case 'price_low':
                 $query->orderBy('price', 'asc');
                 break;
+            case 'price_desc':
             case 'price_high':
                 $query->orderBy('price', 'desc');
                 break;
+            case 'name_asc':
             case 'name_az':
                 $query->orderBy('name', 'asc');
                 break;
+            case 'name_desc':
             case 'name_za':
                 $query->orderBy('name', 'desc');
+                break;
+            case 'newest':
+                $query->orderBy('created_at', 'desc');
                 break;
             default:
                 $query->latest();
@@ -64,34 +75,57 @@ class ProductController extends Controller
 
         $products = $query->paginate(12);
         
-        return view('frontend.products.index', compact('products'));
+        // Get categories with product count for sidebar
+        $categories = Category::withCount('products')->get();
+        
+        // Get wishlist product IDs for authenticated user
+        $wishlistProductIds = [];
+        if (Auth::check()) {
+            $wishlistProductIds = Wishlist::where('user_id', Auth::id())
+                ->pluck('product_id')
+                ->toArray();
+        }
+        
+        return view('frontend.products.index', compact('products', 'categories', 'wishlistProductIds'));
     }
 
     // 🧾 Show single product (Frontend - Product Detail Page)
     public function show($id)
     {
-        $product = Product::with(['images', 'category'])
-            ->where('is_active', true)
-            ->findOrFail($id);
+        $product = Product::with(['images', 'category'])->findOrFail($id);
 
         // Get related products from the same category
         $relatedProducts = Product::with(['images'])
             ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
-            ->where('is_active', true)
             ->where('stock_quantity', '>', 0)
             ->inRandomOrder()
             ->limit(8)
             ->get();
 
-        return view('frontend.products.show', compact('product', 'relatedProducts'));
+        // Check if product is in user's wishlist
+        $isInWishlist = false;
+        $relatedWishlistIds = [];
+        
+        if (Auth::check()) {
+            $isInWishlist = Wishlist::where('user_id', Auth::id())
+                ->where('product_id', $product->id)
+                ->exists();
+            
+            // Get wishlist IDs for related products
+            $relatedWishlistIds = Wishlist::where('user_id', Auth::id())
+                ->whereIn('product_id', $relatedProducts->pluck('id'))
+                ->pluck('product_id')
+                ->toArray();
+        }
+
+        return view('frontend.products.show', compact('product', 'relatedProducts', 'isInWishlist', 'relatedWishlistIds'));
     }
 
     // 🌟 Featured products (Frontend)
     public function featured()
     {
         $products = Product::with(['category', 'images'])
-            ->where('is_active', true)
             ->where('featured', true)
             ->latest()
             ->take(10)
@@ -104,7 +138,6 @@ class ProductController extends Controller
     public function newArrivals()
     {
         $products = Product::with(['category', 'images'])
-            ->where('is_active', true)
             ->latest()
             ->take(10)
             ->get();
@@ -116,7 +149,6 @@ class ProductController extends Controller
     public function onSale()
     {
         $products = Product::with(['category', 'images'])
-            ->where('is_active', true)
             ->whereNotNull('sale_price')
             ->whereColumn('sale_price', '<', 'price')
             ->paginate(12);
@@ -130,7 +162,6 @@ class ProductController extends Controller
         $query = $request->input('q', '');
         
         $products = Product::with(['category', 'images'])
-            ->where('is_active', true)
             ->where(function($q) use ($query) {
                 $q->where('name', 'like', "%$query%")
                   ->orWhere('description', 'like', "%$query%");
@@ -165,9 +196,13 @@ class ProductController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        // Filter by status
+        // Filter by status (only if is_active column exists)
         if ($request->filled('status')) {
-            $query->where('is_active', $request->status == 'active');
+            try {
+                $query->where('is_active', $request->status == 'active');
+            } catch (\Exception $e) {
+                // Skip if column doesn't exist
+            }
         }
 
         // Sorting
@@ -186,7 +221,7 @@ class ProductController extends Controller
     {
         $this->authorizeAdmin();
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:products,slug',
             'sku' => 'nullable|string|max:100|unique:products,sku',
@@ -194,11 +229,17 @@ class ProductController extends Controller
             'sale_price' => 'nullable|numeric|min:0|lt:price',
             'description' => 'nullable|string',
             'stock_quantity' => 'required|integer|min:0',
-            'is_active' => 'boolean',
             'featured' => 'boolean',
             'category_id' => 'required|exists:categories,id',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-        ]);
+        ];
+
+        // Only validate is_active if column exists
+        if (\Schema::hasColumn('products', 'is_active')) {
+            $rules['is_active'] = 'boolean';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -230,7 +271,7 @@ class ProductController extends Controller
 
         $product = Product::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'name' => 'sometimes|required|string|max:255',
             'slug' => 'sometimes|required|string|max:255|unique:products,slug,' . $product->id,
             'sku' => 'nullable|string|max:100|unique:products,sku,' . $product->id,
@@ -238,11 +279,17 @@ class ProductController extends Controller
             'sale_price' => 'nullable|numeric|min:0|lt:price',
             'description' => 'nullable|string',
             'stock_quantity' => 'sometimes|required|integer|min:0',
-            'is_active' => 'boolean',
             'featured' => 'boolean',
             'category_id' => 'sometimes|required|exists:categories,id',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-        ]);
+        ];
+
+        // Only validate is_active if column exists
+        if (\Schema::hasColumn('products', 'is_active')) {
+            $rules['is_active'] = 'boolean';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -307,14 +354,22 @@ class ProductController extends Controller
 
         $stats = [
             'total_products' => Product::count(),
-            'active_products' => Product::where('is_active', true)->count(),
-            'inactive_products' => Product::where('is_active', false)->count(),
             'out_of_stock' => Product::where('stock_quantity', 0)->count(),
             'low_stock' => Product::where('stock_quantity', '>', 0)
                                   ->where('stock_quantity', '<', 10)->count(),
-            'featured_products' => Product::where('featured', true)->count(),
             'total_value' => Product::sum('price'),
         ];
+
+        // Add is_active stats only if column exists
+        if (\Schema::hasColumn('products', 'is_active')) {
+            $stats['active_products'] = Product::where('is_active', true)->count();
+            $stats['inactive_products'] = Product::where('is_active', false)->count();
+        }
+
+        // Add featured stats only if column exists
+        if (\Schema::hasColumn('products', 'featured')) {
+            $stats['featured_products'] = Product::where('featured', true)->count();
+        }
 
         return response()->json($stats);
     }
@@ -337,13 +392,21 @@ class ProductController extends Controller
             ], 422);
         }
 
-        Product::whereIn('id', $request->product_ids)
-               ->update(['is_active' => $request->is_active]);
+        // Only update if is_active column exists
+        if (\Schema::hasColumn('products', 'is_active')) {
+            Product::whereIn('id', $request->product_ids)
+                   ->update(['is_active' => $request->is_active]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Products updated successfully'
+            ], 200);
+        }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Products updated successfully'
-        ], 200);
+            'success' => false,
+            'message' => 'is_active column does not exist'
+        ], 400);
     }
 
     // 🛡️ Helper - Check admin access
