@@ -11,7 +11,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContactController;     
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\AdminAuthController;
@@ -82,6 +82,9 @@ Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])
 
 // ========== STATIC PAGES ==========
 Route::get('/terms', fn () => view('terms'))->name('terms');
+
+// Add to web.php (outside middleware groups)
+Route::post('/stripe/webhook', [CheckoutController::class, 'webhook'])->name('stripe.webhook');
 
 /*
 |--------------------------------------------------------------------------

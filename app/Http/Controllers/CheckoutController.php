@@ -9,6 +9,8 @@ use App\Models\OrderItem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Stripe\Stripe;
+use Stripe\Checkout\Session as StripeSession;
 
 class CheckoutController extends Controller
 {
@@ -51,6 +53,7 @@ class CheckoutController extends Controller
                 ->get();
 
             if ($cartItems->isEmpty()) {
+                DB::rollBack();
                 return redirect()->route('cart.index')
                     ->with('error', 'Your cart is empty');
             }
@@ -82,8 +85,8 @@ class CheckoutController extends Controller
                 'discount_amount' => $discountAmount,
                 'total_amount' => $totalAmount,
                 'currency' => 'USD',
-                'shipping_address' => $validated['address'], // Will be cast to JSON automatically
-                'billing_address' => $validated['address'], // Will be cast to JSON automatically
+                'shipping_address' => $validated['address'],
+                'billing_address' => $validated['address'],
                 'notes' => null,
             ]);
 
@@ -100,13 +103,93 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            // Clear cart
-            ShoppingCart::where('user_id', Auth::id())->delete();
+            // Handle Payment Method
+            if ($validated['payment_method'] === 'card') {
+                // STRIPE PAYMENT
+                Stripe::setApiKey(config('services.stripe.secret'));
+                
+                // Prepare line items for Stripe
+                $lineItems = [];
+                foreach ($cartItems as $item) {
+                    $lineItems[] = [
+                        'price_data' => [
+                            'currency' => 'usd',
+                            'product_data' => [
+                                'name' => $item->product->name,
+                                'description' => $item->product->description ?? '',
+                            ],
+                            'unit_amount' => intval($item->price * 100), // Convert to cents
+                        ],
+                        'quantity' => $item->quantity,
+                    ];
+                }
 
-            DB::commit();
+                // Add shipping if applicable
+                if ($shippingAmount > 0) {
+                    $lineItems[] = [
+                        'price_data' => [
+                            'currency' => 'usd',
+                            'product_data' => [
+                                'name' => 'Shipping',
+                            ],
+                            'unit_amount' => intval($shippingAmount * 100),
+                        ],
+                        'quantity' => 1,
+                    ];
+                }
 
-            return redirect()->route('checkout.success', ['order' => $order->id])
-                ->with('success', 'Order placed successfully!');
+                // Add tax if applicable
+                if ($taxAmount > 0) {
+                    $lineItems[] = [
+                        'price_data' => [
+                            'currency' => 'usd',
+                            'product_data' => [
+                                'name' => 'Tax',
+                            ],
+                            'unit_amount' => intval($taxAmount * 100),
+                        ],
+                        'quantity' => 1,
+                    ];
+                }
+                
+                // Create Stripe Checkout Session
+                $session = StripeSession::create([
+                    'payment_method_types' => ['card'],
+                    'line_items' => $lineItems,
+                    'mode' => 'payment',
+                    'success_url' => route('checkout.success', ['order' => $order->id]) . '?session_id={CHECKOUT_SESSION_ID}',
+                    'cancel_url' => route('checkout.index') . '?canceled=1',
+                    'customer_email' => Auth::user()->email,
+                    'metadata' => [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'user_id' => Auth::id(),
+                    ],
+                ]);
+                
+                // Save Stripe session ID to order
+                $order->update(['stripe_session_id' => $session->id]);
+                
+                DB::commit();
+                
+                // Redirect to Stripe Checkout
+                return redirect($session->url);
+                
+            } else {
+                // CASH ON DELIVERY
+                $order->update([
+                    'payment_status' => 'pending',
+                    'status' => 'confirmed',
+                ]);
+
+                // Clear cart for COD orders
+                ShoppingCart::where('user_id', Auth::id())->delete();
+                
+                DB::commit();
+
+                return redirect()->route('checkout.success', ['order' => $order->id])
+                    ->with('success', 'Order placed successfully!');
+            }
                 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -116,11 +199,12 @@ class CheckoutController extends Controller
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString(),
             ]);
             
             return back()
                 ->withInput()
-                ->with('error', 'Failed to process order. Error: ' . $e->getMessage());
+                ->with('error', 'Failed to process order. Please try again.');
         }
     }
 
@@ -137,13 +221,112 @@ class CheckoutController extends Controller
         return $orderNumber;
     }
 
-    public function success($orderId)
+    /**
+     * Stripe Webhook Handler
+     */
+    public function webhook(Request $request)
+    {
+        Stripe::setApiKey(config('services.stripe.secret'));
+        
+        $payload = $request->getContent();
+        $sigHeader = $request->header('Stripe-Signature');
+        $endpointSecret = env('STRIPE_WEBHOOK_SECRET');
+        
+        try {
+            $event = \Stripe\Webhook::constructEvent(
+                $payload, $sigHeader, $endpointSecret
+            );
+            
+            // Handle the event
+            switch ($event->type) {
+                case 'checkout.session.completed':
+                    $session = $event->data->object;
+                    
+                    $order = Order::where('stripe_session_id', $session->id)->first();
+                    
+                    if ($order) {
+                        $order->update([
+                            'payment_status' => 'paid',
+                            'status' => 'processing',
+                            'stripe_payment_intent_id' => $session->payment_intent ?? null,
+                        ]);
+
+                        // Clear cart after successful payment
+                        ShoppingCart::where('user_id', $order->user_id)->delete();
+                    }
+                    break;
+
+                case 'payment_intent.payment_failed':
+                    $paymentIntent = $event->data->object;
+                    
+                    $order = Order::where('stripe_payment_intent_id', $paymentIntent->id)->first();
+                    
+                    if ($order) {
+                        $order->update([
+                            'payment_status' => 'failed',
+                            'status' => 'cancelled',
+                        ]);
+                    }
+                    break;
+                    
+                default:
+                    Log::info('Unhandled Stripe webhook event: ' . $event->type);
+            }
+            
+            return response()->json(['status' => 'success'], 200);
+            
+        } catch (\UnexpectedValueException $e) {
+            // Invalid payload
+            Log::error('Stripe webhook invalid payload: ' . $e->getMessage());
+            return response()->json(['error' => 'Invalid payload'], 400);
+            
+        } catch (\Stripe\Exception\SignatureVerificationException $e) {
+            // Invalid signature
+            Log::error('Stripe webhook invalid signature: ' . $e->getMessage());
+            return response()->json(['error' => 'Invalid signature'], 400);
+            
+        } catch (\Exception $e) {
+            Log::error('Stripe webhook error: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Order success page
+     */
+    public function success(Request $request, $orderId)
     {
         $order = Order::with('items.product')->findOrFail($orderId);
         
         // Ensure user can only view their own order
         if ($order->user_id !== Auth::id()) {
             abort(403, 'Unauthorized access to order');
+        }
+
+        // Verify Stripe payment if session_id exists
+        if ($request->has('session_id') && $order->stripe_session_id) {
+            Stripe::setApiKey(config('services.stripe.secret'));
+            
+            try {
+                $session = StripeSession::retrieve($request->session_id);
+                
+                if ($session->payment_status === 'paid') {
+                    $order->update([
+                        'payment_status' => 'paid',
+                        'status' => 'processing',
+                        'stripe_payment_intent_id' => $session->payment_intent ?? null,
+                    ]);
+                    
+                    // Clear cart after successful payment verification
+                    ShoppingCart::where('user_id', Auth::id())->delete();
+                }
+            } catch (\Exception $e) {
+                Log::error('Stripe session verification failed', [
+                    'order_id' => $order->id,
+                    'session_id' => $request->session_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return view('frontend.checkout.success', compact('order'));
