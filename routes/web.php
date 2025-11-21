@@ -116,14 +116,16 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
     Route::delete('/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
 });
-    
     // ========== CHECKOUT ROUTES ==========
-    Route::prefix('checkout')->name('checkout.')->group(function () {
-        Route::get('/', [CheckoutController::class, 'index'])->name('index');
-        Route::post('/process', [CheckoutController::class, 'process'])->name('process');
-        Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
-    });
-    
+Route::prefix('checkout')->name('checkout.')->middleware('auth')->group(function () {
+    Route::get('/', [CheckoutController::class, 'index'])->name('index');
+    Route::post('/apply-coupon', [CheckoutController::class, 'applyCoupon'])->name('apply-coupon');
+    Route::post('/remove-coupon', [CheckoutController::class, 'removeCoupon'])->name('remove-coupon');
+    Route::post('/process', [CheckoutController::class, 'process'])->name('process');
+    Route::get('/paypal/{order}', [CheckoutController::class, 'paypal'])->name('paypal');
+    Route::get('/paypal/{order}/execute', [CheckoutController::class, 'paypalExecute'])->name('paypal.execute');
+    Route::get('/success/{order}', [CheckoutController::class, 'success'])->name('success');
+});
     // ========== ORDER ROUTES ==========
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');

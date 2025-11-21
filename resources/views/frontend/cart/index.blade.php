@@ -111,16 +111,16 @@
                                                         </strong>
                                                     </td>
                                                     <td>
-                                                        <form action="{{ route('cart.remove', Auth::check() ? $item->id : $item->product->id) }}" 
-                                                              method="POST"
-                                                              onsubmit="return confirm('Remove this item from cart?')">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </td>
+    <form action="{{ route('cart.remove', Auth::check() ? $item->id : $item->product->id) }}" 
+          method="POST"
+          onsubmit="return confirm('Remove this item from cart?')">
+        @csrf
+        @method('DELETE')
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            <i class="fas fa-times"></i>
+        </button>
+    </form>
+</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
