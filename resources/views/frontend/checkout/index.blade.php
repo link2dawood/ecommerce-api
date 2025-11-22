@@ -98,58 +98,6 @@
                                 </label>
                             </div>
 
-                            <!-- Stripe Card Details (shown when selected) -->
-                            <div id="stripe-details" class="payment-details">
-                                <div class="card bg-light border-0 mb-3">
-                                    <div class="card-body">
-                                        <div class="d-flex align-items-center mb-3">
-                                            <i class="fas fa-lock text-success me-2"></i>
-                                            <small class="text-muted">Secure, fast checkout with Link</small>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label class="form-label small">Card number</label>
-                                            <input 
-                                                type="text" 
-                                                class="form-control" 
-                                                placeholder="1234 1234 1234 1234"
-                                                readonly>
-                                        </div>
-                                        
-                                        <div class="row g-3">
-                                            <div class="col-6">
-                                                <label class="form-label small">Expiry date</label>
-                                                <input 
-                                                    type="text" 
-                                                    class="form-control" 
-                                                    placeholder="MM / YY"
-                                                    readonly>
-                                            </div>
-                                            <div class="col-6">
-                                                <label class="form-label small">Security code</label>
-                                                <input 
-                                                    type="text" 
-                                                    class="form-control" 
-                                                    placeholder="CVC"
-                                                    readonly>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3 mt-3">
-                                            <label class="form-label small">Country</label>
-                                            <select class="form-select" disabled>
-                                                <option>Pakistan</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="alert alert-info small mb-0" role="alert">
-                                            <i class="fas fa-info-circle me-2"></i>
-                                            You'll be redirected to Stripe's secure payment page
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- PayPal Payment -->
                             <div class="payment-option">
                                 <input 
@@ -171,7 +119,7 @@
 
                             <!-- PayPal Details (shown when selected) -->
                             <div id="paypal-details" class="payment-details d-none">
-                                <div class="card bg-light border-0 mt-3">
+                                <div class="card bg-light border-0 mt-3 mb-3">
                                     <div class="card-body text-center py-4">
                                         <i class="fab fa-paypal text-primary" style="font-size: 48px;"></i>
                                         <p class="mt-3 mb-0 text-muted">
@@ -324,6 +272,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     stripeRadio.addEventListener('change', togglePaymentDetails);
     paypalRadio.addEventListener('change', togglePaymentDetails);
+
+    // Initialize: hide both payment details initially
+    togglePaymentDetails();
 
     // Apply Coupon
     const applyCouponBtn = document.getElementById('apply-coupon');
