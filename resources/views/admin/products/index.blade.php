@@ -20,6 +20,13 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
@@ -110,19 +117,33 @@
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="{{ route('admin.products.edit', $product->id) }}" 
-                                           class="btn btn-sm btn-warning">
+                                           class="btn btn-sm btn-warning"
+                                           title="Edit product">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <form action="{{ route('admin.products.destroy', $product->id) }}" 
-                                              method="POST" 
-                                              class="d-inline"
-                                              onsubmit="return confirm('Are you sure you want to delete this product?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger">
-                                                <i class="fas fa-trash"></i>
+                                        
+                                        @if($product->orderItems()->exists())
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-info"
+                                                    data-bs-toggle="tooltip"
+                                                    title="Product has orders - archive instead of delete"
+                                                    onclick="archiveProduct({{ $product->id }})">
+                                                <i class="fas fa-archive"></i>
                                             </button>
-                                        </form>
+                                        @else
+                                            <form action="{{ route('admin.products.destroy', $product->id) }}" 
+                                                  method="POST" 
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Are you sure you want to delete this product?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-danger"
+                                                        title="Delete product">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -149,4 +170,49 @@
         </div>
     </div>
 </div>
+
+<!-- Archive Modal -->
+<div class="modal fade" id="archiveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Archive Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This product has associated orders and cannot be permanently deleted.</p>
+                <p class="mb-0">Would you like to <strong>archive</strong> it instead? Archived products will be hidden from the store but the order history will be preserved.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="archiveForm" method="POST" class="d-inline">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-archive"></i> Archive Product
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function archiveProduct(productId) {
+    const form = document.getElementById('archiveForm');
+    form.action = `/admin/products/${productId}/archive`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('archiveModal'));
+    modal.show();
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
 @endsection

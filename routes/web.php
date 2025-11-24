@@ -12,7 +12,6 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ContactController;     
-use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -21,6 +20,8 @@ use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminCategoryController;
 use App\Http\Controllers\Admin\AdminCouponController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\NewsletterController;  // Add this import
+
 
 
 /*
@@ -152,15 +153,15 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     
     // ========== PRODUCTS MANAGEMENT ==========
-    Route::prefix('products')->name('products.')->group(function () {
-        Route::get('/', [AdminProductController::class, 'index'])->name('index');
-        Route::get('/create', [AdminProductController::class, 'create'])->name('create');
-        Route::post('/', [AdminProductController::class, 'store'])->name('store');
-        Route::get('/{id}/edit', [AdminProductController::class, 'edit'])->name('edit');
-        Route::put('/{id}', [AdminProductController::class, 'update'])->name('update');
-        Route::delete('/{id}', [AdminProductController::class, 'destroy'])->name('destroy');
-    });
-    
+Route::prefix('products')->name('products.')->group(function () {
+    Route::get('/', [AdminProductController::class, 'index'])->name('index');
+    Route::get('/create', [AdminProductController::class, 'create'])->name('create');
+    Route::post('/', [AdminProductController::class, 'store'])->name('store');
+    Route::get('/{id}/edit', [AdminProductController::class, 'edit'])->name('edit');
+    Route::put('/{id}', [AdminProductController::class, 'update'])->name('update');
+    Route::patch('/{id}/archive', [AdminProductController::class, 'archive'])->name('archive');
+    Route::delete('/{id}', [AdminProductController::class, 'destroy'])->name('destroy');
+});
     // ========== CATEGORIES MANAGEMENT ==========
     Route::prefix('categories')->name('categories.')->group(function () {
         Route::get('/', [AdminCategoryController::class, 'index'])->name('index');
@@ -221,11 +222,12 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     */
        
     // ========== NEWSLETTERS MANAGEMENT ==========
-    Route::get('/newsletters', [NewsletterController::class, 'index'])->name('newsletters.index');
-    Route::delete('/newsletters/{id}', [NewsletterController::class, 'destroy'])->name('newsletters.destroy');
-    Route::delete('/newsletters-bulk-delete', [NewsletterController::class, 'bulkDelete'])->name('newsletters.bulkDelete');
-    Route::post('/newsletters/export', [NewsletterController::class, 'export'])->name('newsletters.export');
-    
+    Route::prefix('newsletters')->name('newsletters.')->group(function () {
+        Route::get('/', [NewsletterController::class, 'index'])->name('index');
+        Route::delete('/{id}', [NewsletterController::class, 'destroy'])->name('destroy');
+        Route::delete('/bulk', [NewsletterController::class, 'bulkDelete'])->name('bulkDelete');
+        Route::post('/export', [NewsletterController::class, 'export'])->name('export');
+    });
     // ========== SETTINGS ==========
     // Uncomment when SettingsController is created
     

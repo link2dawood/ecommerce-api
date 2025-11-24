@@ -54,9 +54,13 @@
                                 <td>{{ $newsletter->email }}</td>
                                 <td>{{ $newsletter->created_at->format('M d, Y H:i') }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-danger delete-btn" data-id="{{ $newsletter->id }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <form action="{{ route('admin.newsletters.destroy', $newsletter->id) }}" method="POST" class="d-inline delete-form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty
@@ -77,126 +81,135 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    // Select all checkboxes
-    $('#selectAll').on('change', function() {
-        $('.select-item').prop('checked', $(this).prop('checked'));
-        toggleBulkDelete();
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    // Select all checkbox
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const selectItems = document.querySelectorAll('.select-item');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 
-    // Individual checkbox change
-    $('.select-item').on('change', function() {
-        toggleBulkDelete();
-        updateSelectAll();
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            selectItems.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            toggleBulkDelete();
+        });
+    }
+
+    // Individual checkboxes
+    selectItems.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            toggleBulkDelete();
+            updateSelectAll();
+        });
     });
 
     // Toggle bulk delete button
     function toggleBulkDelete() {
-        const checkedCount = $('.select-item:checked').length;
+        const checkedCount = document.querySelectorAll('.select-item:checked').length;
         if (checkedCount > 0) {
-            $('#bulkDeleteBtn').show();
+            bulkDeleteBtn.style.display = 'block';
         } else {
-            $('#bulkDeleteBtn').hide();
+            bulkDeleteBtn.style.display = 'none';
         }
     }
 
     // Update select all checkbox
     function updateSelectAll() {
-        const totalItems = $('.select-item').length;
-        const checkedItems = $('.select-item:checked').length;
-        $('#selectAll').prop('checked', totalItems === checkedItems && totalItems > 0);
+        const totalItems = selectItems.length;
+        const checkedItems = document.querySelectorAll('.select-item:checked').length;
+        selectAllCheckbox.checked = totalItems === checkedItems && totalItems > 0;
     }
 
-    // Single delete
-    $('.delete-btn').on('click', function() {
-        const id = $(this).data('id');
-        
-        if (confirm('Are you sure you want to delete this subscriber?')) {
-            $.ajax({
-                url: `/admin/newsletters/${id}`,
-                type: 'DELETE',
+    // Delete form submission
+    const deleteForms = document.querySelectorAll('.delete-form');
+    deleteForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const url = this.getAttribute('action');
+            
+            fetch(url, {
+                method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
                 },
-                success: function(response) {
-                    if (response.success) {
-                        $(`tr[data-id="${id}"]`).fadeOut(300, function() {
-                            $(this).remove();
-                            checkEmptyTable();
-                        });
-                        showAlert('success', response.message);
-                    }
-                },
-                error: function() {
-                    showAlert('danger', 'Error deleting subscriber');
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.closest('tr').remove();
+                    showAlert('success', data.message || 'Subscriber deleted successfully');
+                    // Reload page after 1 second
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', data.message || 'Error deleting subscriber');
                 }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Error deleting subscriber');
             });
-        }
+        });
     });
 
     // Bulk delete
-    $('#bulkDeleteBtn').on('click', function() {
-        const selectedIds = $('.select-item:checked').map(function() {
-            return $(this).val();
-        }).get();
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', function() {
+            const selectedIds = Array.from(document.querySelectorAll('.select-item:checked'))
+                .map(checkbox => checkbox.value);
 
-        if (selectedIds.length === 0) {
-            showAlert('warning', 'Please select subscribers to delete');
-            return;
-        }
+            if (selectedIds.length === 0) {
+                showAlert('warning', 'Please select subscribers to delete');
+                return;
+            }
 
-        if (confirm(`Are you sure you want to delete ${selectedIds.length} subscriber(s)?`)) {
-            $.ajax({
-                url: '{{ route("admin.newsletters.bulkDelete") }}',
-                type: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                data: {
-                    ids: selectedIds
-                },
-                success: function(response) {
-                    if (response.success) {
-                        selectedIds.forEach(id => {
-                            $(`tr[data-id="${id}"]`).fadeOut(300, function() {
-                                $(this).remove();
-                                checkEmptyTable();
-                            });
-                        });
-                        $('#selectAll').prop('checked', false);
-                        $('#bulkDeleteBtn').hide();
-                        showAlert('success', response.message);
+            if (confirm(`Are you sure you want to delete ${selectedIds.length} subscriber(s)?`)) {
+                fetch('{{ route("admin.newsletters.bulkDelete") }}', {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: selectedIds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', data.message || 'Subscribers deleted successfully');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showAlert('danger', data.message || 'Error deleting subscribers');
                     }
-                },
-                error: function() {
+                })
+                .catch(error => {
+                    console.error('Error:', error);
                     showAlert('danger', 'Error deleting subscribers');
-                }
-            });
-        }
-    });
-
-    // Check if table is empty
-    function checkEmptyTable() {
-        if ($('tbody tr').length === 0) {
-            $('tbody').html('<tr><td colspan="5" class="text-center">No subscribers yet.</td></tr>');
-        }
+                });
+            }
+        });
     }
 
     // Show alert
     function showAlert(type, message) {
-        const alert = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.setAttribute('role', 'alert');
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        $('.container-fluid').prepend(alert);
+        document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.container-fluid').firstChild);
         
         setTimeout(() => {
-            $('.alert').fadeOut(300, function() {
-                $(this).remove();
-            });
-        }, 3000);
+            alert.remove();
+        }, 4000);
     }
 });
 </script>

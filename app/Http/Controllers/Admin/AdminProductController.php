@@ -54,16 +54,11 @@ class AdminProductController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        // Generate slug from name
         $validated['slug'] = Str::slug($validated['name']);
-        
-        // Handle featured checkbox
         $validated['featured'] = $request->has('featured') ? 1 : 0;
 
-        // Create product
         $product = Product::create($validated);
 
-        // Handle image upload to ProductImage model
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('products', 'public');
             
@@ -113,24 +108,17 @@ class AdminProductController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        // Generate slug from name
         $validated['slug'] = Str::slug($validated['name']);
-        
-        // Handle featured checkbox
         $validated['featured'] = $request->has('featured') ? 1 : 0;
 
-        // Handle image upload
         if ($request->hasFile('image')) {
-            // Get primary image
             $primaryImage = $product->images()->where('is_primary', true)->first();
             
-            // Delete old primary image if exists
             if ($primaryImage) {
                 Storage::disk('public')->delete($primaryImage->image_path);
                 $primaryImage->delete();
             }
             
-            // Upload new image
             $imagePath = $request->file('image')->store('products', 'public');
             
             ProductImage::create([
@@ -149,10 +137,18 @@ class AdminProductController extends Controller
 
     /**
      * Remove the specified product from storage (WEB ADMIN)
+     * OPTION 1: Soft Delete - Mark as deleted without removing data
      */
     public function destroy($id)
     {
         $product = Product::findOrFail($id);
+
+        // Check if product has order items
+        if ($product->orderItems()->exists()) {
+            return redirect()
+                ->route('admin.products.index')
+                ->with('error', 'Cannot delete this product because it has associated orders. Consider archiving it instead.');
+        }
 
         // Delete all product images
         foreach ($product->images as $image) {
@@ -165,5 +161,18 @@ class AdminProductController extends Controller
         return redirect()
             ->route('admin.products.index')
             ->with('success', 'Product deleted successfully!');
+    }
+
+    /**
+     * OPTION 2: Archive a product instead of deleting
+     */
+    public function archive($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->update(['status' => 'inactive']);
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', 'Product archived successfully!');
     }
 }
